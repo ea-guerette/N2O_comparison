@@ -4,6 +4,7 @@
 library(tidyverse)
 
 #need to read in data files: 
+#NEED TO ADD JKADS5099 to this 
 
 #read in PDD summary report - extract C_HT
 pdd_n2o_tank <- read_fwf("data/summary_report_pdd",  fwf_cols("UAN" = c(1,20), "date" = c(40,45), "N2O" = c(147,153), "sd" = c(156,162), "n" = c(163,168)),
@@ -28,7 +29,7 @@ UAN_list <- str_sub(levels(as.factor(pdd_n2o_tank$UAN)), start= 4 )
 
 tank_results <- bind_rows(pdd_n2o_tank, ecd_n2o_tank,rvi_n2o_tank)
 
-#read in SHIM data for N2O 
+#read in SHIM data for N2O - not using this because site files do not contain info needed
 #shim_n2o_tank <- read_table2(file = "data/csa_02D0_event.n2o", skip =25,  col_names =  T,   
                   # na = "-999.990", comment = "") %>% 
                   #filter(uan %in% UAN_list) %>%  select(id, uan ,formula, value, inst)  %>% #, flag)
@@ -45,31 +46,54 @@ tank_results <- bind_rows(pdd_n2o_tank, ecd_n2o_tank,rvi_n2o_tank)
 #Use shim_data, select UANs of interest, group by UAN, calculate weighted mean and some error value (try weighted sd)
 shim_tanks <- filter(shim_data, UAN %in% UAN_list) %>% group_by(UAN) %>% mutate(sum_N2O = N2O*n, sum_sd = sd *n) %>% summarise(n_S1 = sum(n, na.rm = T), N2O_S1 = sum(sum_N2O, na.rm = T)/sum(n, na.rm = T), sd_S1 = sum(sum_sd, na.rm = T)/sum(n, na.rm = T))
 
+#to do - apply CO2 correction to SHIM data, N2O_S1_corr, calculate diff_corr
+
 c3_tanks <- filter(c3_data, UAN %in% UAN_list) %>% group_by(UAN) %>% 
   mutate(sum_co2 = `CO2 ar mixing ratio`* `CO2 # aliquots`, sum_ch4 = `CH4 ht mixing ratio` *`CH4 # aliquots`) %>% 
   summarise(CH4 = sum(sum_ch4, na.rm = T)/sum(`CH4 # aliquots`, na.rm = T),CO2 = sum(sum_co2, na.rm = T)/sum(`CO2 # aliquots`, na.rm = T))
 db_tanks <- full_join(c3_tanks, shim_tanks) %>% mutate(UAN = as.character(UAN)) %>% mutate(UAN = paste0("UAN", UAN))
 
 tanks <- left_join(db_tanks, tank_results)  %>% mutate(diff = N2O - N2O_S1)
+#need to manually add a value for CO2 for UAN999479, 
+#unless I change my query to select everything, and keep other flags when there are no flag ==0 
+#this is what SQUALL does I think in the online UAN query 
+#on the todo /nice to have list?
+tanks$CO2[which(is.na(tanks$CO2))] <- 0.98 #this is clunky and only works in this specific case
+
+#todo: double check numbers against online UAN query 
 
 library(lattice)
 
 xyplot(N2O ~N2O_S1, groups = instrument, data = tanks, 
        pch = 16, auto.key = T)
 #rvi reads high! and we are missing tanks + need to flag some data 
+mean_sd <- mean(tanks$sd_S1, na.rm = T)
 
 xyplot(diff ~N2O_S1, groups = instrument, data = tanks, 
-       pch = 16, auto.key = T)
-xyplot(diff ~CO2_C3, groups = instrument, data = tanks, 
+       pch = 16, auto.key = T,
+       panel = function(x,y,...){
+         panel.xyplot(x,y, ...)
+         panel.abline(h = c(0, mean_sd, -mean_sd), lty = c(2, 3,3))})
+
+
+
+xyplot(diff ~CO2, groups = instrument, data = tanks, 
        pch = 16, auto.key = T, 
        panel = function(x,y,...){
          panel.xyplot(x,y, ...)
-         panel.abline(h = c(0, 0.1, -0.1), lty = c(2, 3,3))}
+         panel.abline(h = c(0, mean_sd, -mean_sd), lty = c(2, 3,3))}
        )
+#OK, this is something, but would prefer individual error bars on SHIM values, instead of mean_sd
+#this seems to show that JKADS5100 has a very strong CO2 dependence :/ is JKADS5099 the same? 
+#ECD reads a little low? 
 
-#explore ggplot2 - I think they have handy error bar features 
+#todo: explore ggplot2 - I think they have handy error bar features 
+#todo: also check options with lattice 
+
+#WHAT NOW? 
+
+
 
 #make a wide dataset 
-
 test <- spread(tanks, key = instrument, value = N2O ) #hmmm need to spread more than just N2O values (also sd, etc. )
 #maybe need to gather first, then spread
