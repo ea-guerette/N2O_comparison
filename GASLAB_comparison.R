@@ -30,23 +30,27 @@ tank_results <- bind_rows(pdd_n2o_tank, ecd_n2o_tank,rvi_n2o_tank)
 
 #read in SHIM data for N2O 
 #shim_n2o_tank <- read_table2(file = "data/csa_02D0_event.n2o", skip =25,  col_names =  T,   
-                 #  na = "-999.990", comment = "") %>% 
-                 # filter(uan %in% UAN_list) %>%  select(id, uan ,formula, value, inst)  %>% #, flag)
-                 # unite(formula, inst, col = "name", sep = "_")
+                  # na = "-999.990", comment = "") %>% 
+                  #filter(uan %in% UAN_list) %>%  select(id, uan ,formula, value, inst)  %>% #, flag)
+                  #unite(formula, inst, col = "name", sep = "_")
             
 
 #shim_co2_tank <- read_table2(file = "data/csa_02D0_event.co2", skip =25,  col_names =  T,  
- #                            na = "-999.990", comment = "")  %>% 
- #                  filter(uan %in% UAN_list)  %>%  select(id, uan ,formula, value, inst) %>% #, flag)
-#                unite(formula, inst, col = "name", sep = "_")
+                #  na = "-999.990", comment = "")  %>% 
+                #   filter(uan %in% UAN_list)  %>%  select(id, uan ,formula, value, inst) %>% #, flag)
+                # unite(formula, inst, col = "name", sep = "_")
 
 #shim_tank <- bind_rows(shim_co2_tank, shim_n2o_tank) %>% spread(key = name, value = value) %>% mutate(uan = paste0("UAN", uan))
 
 #Use shim_data, select UANs of interest, group by UAN, calculate weighted mean and some error value (try weighted sd)
-shim_tanks <- filter(shim_data, UAN %in% UAN_list) %>% group_by(UAN) %>% mutate(sum_N2O = N2O*n, sum_sd = sd *n) %>% summarise(n = sum(n), N2O = sum(sum_N2O)/sum(n), sd = sum(sum_sd)/sum(n))
+shim_tanks <- filter(shim_data, UAN %in% UAN_list) %>% group_by(UAN) %>% mutate(sum_N2O = N2O*n, sum_sd = sd *n) %>% summarise(n_S1 = sum(n, na.rm = T), N2O_S1 = sum(sum_N2O, na.rm = T)/sum(n, na.rm = T), sd_S1 = sum(sum_sd, na.rm = T)/sum(n, na.rm = T))
 
+c3_tanks <- filter(c3_data, UAN %in% UAN_list) %>% group_by(UAN) %>% 
+  mutate(sum_co2 = `CO2 ar mixing ratio`* `CO2 # aliquots`, sum_ch4 = `CH4 ht mixing ratio` *`CH4 # aliquots`) %>% 
+  summarise(CH4 = sum(sum_ch4, na.rm = T)/sum(`CH4 # aliquots`, na.rm = T),CO2 = sum(sum_co2, na.rm = T)/sum(`CO2 # aliquots`, na.rm = T))
+db_tanks <- full_join(c3_tanks, shim_tanks) %>% mutate(UAN = as.character(UAN)) %>% mutate(UAN = paste0("UAN", UAN))
 
-tanks <- left_join(shim_tank, tank_results, by = c("uan"= "UAN"))  %>% mutate(diff = N2O - N2O_S1)
+tanks <- left_join(db_tanks, tank_results)  %>% mutate(diff = N2O - N2O_S1)
 
 library(lattice)
 
