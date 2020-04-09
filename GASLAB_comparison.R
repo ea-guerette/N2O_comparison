@@ -17,17 +17,27 @@ ecd_n2o_tank <- read_fwf("data/summary_report_ecd",  fwf_cols("UAN" = c(1,20), "
 
 #read in RVI tank data, using the tools taught in the course: 
 #pull out only the info you need for the N2O comparison - extract N2O_C only
-rvi_n2o_tank <- read_fwf("data/rvi_n2o_co_all", 
-                    fwf_cols("date"= c(1,6), "time" = c(8,11), "type" =c(12,22), "UAN" = c(23,35), "N2O_C" = c(152, 161), "flag" = c(162,162) ) , 
+s5100_n2o_tank <- read_fwf("data/rvi_n2o_co_all", 
+                    fwf_cols("date"= c(1,6), "time" = c(8,11), "type" =c(12,22), "UAN" = c(23,35), "N2O_C" = c(152, 161), "flag" = c(162,162), "N2O_dry" = c(173,181) ) , 
                     skip = 2, trim_ws = TRUE) %>% 
-  filter(type == "tank", flag %in% NA)  %>% 
-  group_by(UAN, date) %>% summarise(N2O = mean(N2O_C), sd = sd(N2O_C, na.rm = T)) %>% mutate(instrument = "JKADS5100")
+  filter(type == "tank", flag %in% NA, str_starts(UAN, "UAN"))  %>% 
+  group_by(UAN, date) %>% summarise(n = n(), N2O = mean(N2O_C), sd = sd(N2O_C, na.rm = T)) %>% mutate(instrument = "JKADS5100")
 #this is good, but how can I summarise the character columns as well?
 
-#create UAN list to filter SHIM results with 
-UAN_list <- str_sub(levels(as.factor(pdd_n2o_tank$UAN)), start= 4 )
+#read in data from JDAKS5099 
+s5099_n2o_tank <- read_fwf("data/jkads5099_n2o_co_all", 
+                           fwf_cols("date"= c(1,6), "time" = c(8,11), "type" =c(12,22), "UAN" = c(23,35), "N2O_C" = c(152, 161), "flag" = c(162,162) ) , 
+                           skip = 2, trim_ws = TRUE) %>% 
+  filter(type == "tank", flag %in% NA, str_starts(UAN, "UAN"))  %>% 
+  group_by(UAN, date) %>% summarise(n = n(), N2O = mean(N2O_C), sd = sd(N2O_C, na.rm = T)) %>% mutate(instrument = "JKADS5099")
 
-tank_results <- bind_rows(pdd_n2o_tank, ecd_n2o_tank,rvi_n2o_tank)
+#create UAN list to filter SHIM results with 
+
+tank_results <- bind_rows(pdd_n2o_tank, ecd_n2o_tank,s5100_n2o_tank,s5099_n2o_tank)
+
+
+
+UAN_list <- str_sub(levels(as.factor(tank_results$UAN)), start= 4 )
 
 #read in SHIM data for N2O - not using this because site files do not contain info needed
 #shim_n2o_tank <- read_table2(file = "data/csa_02D0_event.n2o", skip =25,  col_names =  T,   
@@ -44,7 +54,7 @@ tank_results <- bind_rows(pdd_n2o_tank, ecd_n2o_tank,rvi_n2o_tank)
 #shim_tank <- bind_rows(shim_co2_tank, shim_n2o_tank) %>% spread(key = name, value = value) %>% mutate(uan = paste0("UAN", uan))
 
 #Use shim_data, select UANs of interest, group by UAN, calculate weighted mean and some error value (try weighted sd)
-shim_tanks <- filter(shim_data, UAN %in% UAN_list) %>% group_by(UAN) %>% mutate(sum_N2O = N2O*n, sum_sd = sd *n) %>% summarise(n_S1 = sum(n, na.rm = T), N2O_S1 = sum(sum_N2O, na.rm = T)/sum(n, na.rm = T), sd_S1 = sum(sum_sd, na.rm = T)/sum(n, na.rm = T))
+shim_tanks <- filter(shim_data, UAN  %in% UAN_list) %>% group_by(UAN) %>% mutate(sum_N2O = N2O*n, sum_sd = sd *n) %>% summarise(n_S1 = sum(n, na.rm = T), N2O_S1 = sum(sum_N2O, na.rm = T)/sum(n, na.rm = T), sd_S1 = sum(sum_sd, na.rm = T)/sum(n, na.rm = T))
 
 #to do - apply CO2 correction to SHIM data, N2O_S1_corr, calculate diff_corr
 
@@ -62,6 +72,21 @@ tanks$CO2[which(is.na(tanks$CO2))] <- 0.98 #this is clunky and only works in thi
 
 #todo: double check numbers against online UAN query 
 
+
+mutate(tanks, lower = (0 - sd_S1), upper = (0 + sd_S1)) %>% 
+  ggplot(aes(x = CO2, y = diff, colour = instrument)) + 
+  geom_errorbar(aes(ymin = lower, ymax = upper ), width = 5, colour = "grey") + 
+  geom_point(alpha = 0.5) +
+  theme_minimal() +
+  scale_colour_discrete(name = "Instrument", labels = c("ECD", "JKADS5099", "JKADS5100", "PDD", "SHIM")) +
+  labs(y = expression("N"[2] * "O difference (New instrument - SHIM) (ppb) "), x = expression("CO"[2] * " (ppm)"))
+
+#OK, this is something, but would prefer individual error bars on SHIM values, instead of mean_sd
+#this seems to show that JKADS5100 has a very strong CO2 dependence :/ is JKADS5099 the same? 
+#ECD reads a little low? 
+
+#todo: explore ggplot2 - I think they have handy error bar features 
+#todo: also check options with lattice 
 library(lattice)
 
 xyplot(N2O ~N2O_S1, groups = instrument, data = tanks, 
@@ -82,16 +107,22 @@ xyplot(diff ~CO2, groups = instrument, data = tanks,
        panel = function(x,y,...){
          panel.xyplot(x,y, ...)
          panel.abline(h = c(0, mean_sd, -mean_sd), lty = c(2, 3,3))}
-       )
-#OK, this is something, but would prefer individual error bars on SHIM values, instead of mean_sd
-#this seems to show that JKADS5100 has a very strong CO2 dependence :/ is JKADS5099 the same? 
-#ECD reads a little low? 
+)
 
-#todo: explore ggplot2 - I think they have handy error bar features 
-#todo: also check options with lattice 
+test <- mutate(tanks, lower = (0 - sd_S1), upper = (0 + sd_S1))
+xyplot(diff ~CO2, groups = instrument, data = test, 
+       pch = 16, auto.key = T, 
+       panel = function(x,y,...){
+         panel.arrows(x,y0=0,x, test$upper, length = 0.04, angle = 90, col = "grey30")
+         panel.arrows(x,y0=0,x, test$lower, length = 0.04, angle = 90, col = "grey30")
+         panel.abline(h = c(0), col = "grey30")
+         panel.xyplot(x,y, ...)
+         }
+)
+
 
 #WHAT NOW? 
-
+#RVI is really shit - need to make comparison plots (S5099 vs S5100)
 
 
 #make a wide dataset 
