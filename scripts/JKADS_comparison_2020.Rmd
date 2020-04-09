@@ -1,0 +1,50 @@
+---
+title: "Comparison of two Picarro G5310 units"
+subtitle: "JKADS5099 vs. JKADS5100"
+output: pdf_document
+date: '`r paste("First created: 08-Apr-2020. Updated:", format(Sys.Date(),"%d-%b-%Y"))`'
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Context
+
+In late 2019, two G5310 units were purchased from Picarro <https://www.picarro.com/products/g5310_gas_concentration_analyzer>. The G5310 provides measurements of carbon monoxide (CO) and nitrous oxide (N~2~O) One was bought by MNF to be deployed on the RV _Investigator_ (JKADS5100); whilst the other (JKADS5099) is to be a test unit based at Aspendale, providing measurements in the context of our Urban Greenhouse Gases work. 
+Both units were delivered to Aspendale for side-by-side testing prior to the deployment of JKADS5100 on the RV _Invertigator_. 
+
+The following tests have been performed on the units: 
+
+* 7-point calibration for both CO and N~2~O
+* water vapour dependence tests 
+* accuracy tests using cylinders 
+* side-by-side air sampling 
+
+These tests have uncovered some striking differences between the two units, especially for **water vapour dependence** and **accuracy**. This preliminary report focuses on these aspects of their performance. 
+
+```{r, include = FALSE}
+library(tidyverse)
+load(file = "rdata/h2otest_data.RData")
+load(file = "rdata/tank_data.RData")
+```
+
+## Water vapour dependence tests 
+
+These tests were performed on five? cylinders
+
+
+```{r}
+
+```
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+## Accuracy
