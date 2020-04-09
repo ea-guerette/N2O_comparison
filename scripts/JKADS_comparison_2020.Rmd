@@ -26,25 +26,40 @@ These tests have uncovered some striking differences between the two units, espe
 
 ```{r, include = FALSE}
 library(tidyverse)
+library(lattice)
 load(file = "rdata/h2otest_data.RData")
 load(file = "rdata/tank_data.RData")
 ```
 
 ## Water vapour dependence tests 
 
-These tests were performed on five? cylinders
+These tests were performed on five cylinders containing various amounts of CO and N~2~O: 
+
+TODO: (insert table of values here - get them from squall, print as a tibble)
+
 
 
 ```{r}
+filter(water, co_flag == "") %>% mutate(co_ratio = co_dry/co_wet) %>% 
+  ggplot(aes(x = h2o, y = co_ratio, colour = co_C)) +
+  geom_point() +
+  labs(x = "Water vapour", 
+       y = "dry/wet",
+       colour = "CO (ppb)") + 
+  facet_grid(~instrument)
 
+filter(water, n2o_flag == "") %>% mutate(n2o_ratio = n2o_dry/n2o_wet) %>% 
+  ggplot(aes(x = h2o, y = n2o_ratio, colour = n2o_C)) +
+  geom_point() +
+  labs(x = "Water vapour (ppm)", 
+       y = "dry/wet",
+       colour = expression("N"[2]*"O (ppb)")) + 
+  facet_grid(~instrument)
 ```
-You can also embed plots, for example:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
 
 
 ## Accuracy
+
+...10 cylinders containing various concentrations of CO2 ... 
