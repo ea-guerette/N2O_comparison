@@ -12,54 +12,154 @@ knitr::opts_chunk$set(echo = FALSE)
 
 ## Context
 
-In late 2019, two G5310 units were purchased from Picarro <https://www.picarro.com/products/g5310_gas_concentration_analyzer>. The G5310 provides measurements of carbon monoxide (CO) and nitrous oxide (N~2~O) One was bought by MNF to be deployed on the RV _Investigator_ (JKADS5100); whilst the other (JKADS5099) is to be a test unit based at Aspendale, providing measurements in the context of our Urban Greenhouse Gases work. 
-Both units were delivered to Aspendale for side-by-side testing prior to the deployment of JKADS5100 on the RV _Invertigator_. 
+Two Picarro G5310 units (<https://www.picarro.com/products/g5310_gas_concentration_analyzer>) were received by CSIRO in late 2019/early 2020. The G5310 provides simultaneous measurements of carbon monoxide (CO) and nitrous oxide (N~2~O). 
+One unit was bought by the Marine National Facility to be deployed on the RV _Investigator_ (JKADS5100); the other (JKADS5099) is to be based at Aspendale, providing measurements in the context of our Urban Greenhouse Gases work. 
+Both units were delivered to Aspendale for side-by-side testing prior to the deployment of JKADS5100 on the RV _Investigator_. 
 
 The following tests have been performed on the units: 
 
 * 7-point calibration for both CO and N~2~O
-* water vapour dependence tests 
-* accuracy tests using cylinders 
+* water vapour correction assessment tests 
+* accuracy tests using known cylinders 
 * side-by-side air sampling 
 
-These tests have uncovered some striking differences between the two units, especially for **water vapour dependence** and **accuracy**. This preliminary report focuses on these aspects of their performance. 
+Both units have a linear response for N~2~O in the calibrated range (260 - 404 ppb) whereas the response is non-linear for CO (43.7 - 251.2 pbb - this range needs to be expanded further). 
+The **water vapour dependence** and **accuracy** tests have uncovered some striking differences between the two units. This preliminary report focuses on these aspects of their performance. 
 
 ```{r, include = FALSE}
 library(tidyverse)
+library(lattice)
+library(knitr)
 library(lattice)
 load(file = "rdata/h2otest_data.RData")
 load(file = "rdata/tank_data.RData")
 ```
 
-## Water vapour dependence tests 
+## Water vapour correction assessment tests 
 
-These tests were performed on five cylinders containing various amounts of CO and N~2~O: 
+Water vapour correction tests were performed on both G5310 units using five dry air cylinders containing known amounts of CO and N~2~O (and other species), as shown in Table 1. 
 
-TODO: (insert table of values here - get them from squall, print as a tibble)
-
-
-
-```{r}
-filter(water, co_flag == "") %>% mutate(co_ratio = co_dry/co_wet) %>% 
-  ggplot(aes(x = h2o, y = co_ratio, colour = co_C)) +
-  geom_point() +
-  labs(x = "Water vapour", 
-       y = "dry/wet",
-       colour = "CO (ppb)") + 
-  facet_grid(~instrument)
-
-filter(water, n2o_flag == "") %>% mutate(n2o_ratio = n2o_dry/n2o_wet) %>% 
-  ggplot(aes(x = h2o, y = n2o_ratio, colour = n2o_C)) +
-  geom_point() +
-  labs(x = "Water vapour (ppm)", 
-       y = "dry/wet",
-       colour = expression("N"[2]*"O (ppb)")) + 
-  facet_grid(~instrument)
+```{r, results = 'asis'}
+load("rdata/water_test_tanks.Rdata")
+kable(standards, digits = 2, caption = "Contents of cylinders used in the water vapour dependence tests")
 ```
 
+The _water test apparatus_ consists of a length of decabon tubing equipped with a T-piece fitted with a septum to allow injection of a known amount of water using a syringe. This apparatus is inserted in between the cylinder and the Valco selection valve. The valve is set to the cylinder port and the instrument measures the cylinder through the water test apparatus until the measured H~2~O value stabilises. A known amount of deionised water (typically 0.1 - 0.3 ml) is then injected through the septum. Measured H~2~O values typically increase rapidly to ambient or above ambient levels, and decay slowly. Once the measured H~2~O decays back to that of dry air, another water injection is performed. 
+
+The figures above show the response of the instruments for CO (top figure) and N~2~O (bottom figure). 
+JKADS5099 (left) has a linear response for CO, which does not depend strongly on the amount of CO present in the cylinder tested, whereas JKADS5100 (right) shows a strong dependence on the amount of CO present in the cylinder tested, and has a non-linear response at lower CO levels. This will make correcting the JKADS5100 CO record for water influences quite complex.  
+
+The N~2~O reponse of both instrument has a slight dependence on the amount of N~2~O present. The shape of the curve is different: JKADS5100 has a deeper 'hook' shape than JKADS5099. 
+
+
+```{r, fig.height=3.5}
+
+filter(water, co_flag == "") %>% mutate(co_ratio = co_dry/co_wet) %>% 
+  ggplot(aes(x = h2o, y = co_ratio, colour = sample)) +
+  geom_point(size = 0.8, alpha = 0.5) +
+  labs(title = "CO water correction response", 
+       x = "Water vapour (ppm)", 
+       y = "dry/wet",
+       colour = "Tank ID") + 
+  facet_grid(~instrument) +
+  scale_color_brewer(palette = "Set1") +
+  theme_bw()
+  
+
+filter(water, n2o_flag == "") %>% mutate(n2o_ratio = n2o_dry/n2o_wet) %>% 
+  ggplot(aes(x = h2o, y = n2o_ratio, colour = sample)) +
+  geom_point(size = 0.8, alpha = 0.5) +
+  labs(title = expression("N"[2]*"O water correction response") ,
+       x = "Water vapour (ppm)", 
+       y = "dry/wet",
+       colour = "Tank ID") + 
+  facet_grid(~instrument)+
+  scale_color_brewer(palette = "Set1") +
+  theme_bw()
+```
 
 
 
 ## Accuracy
 
-...10 cylinders containing various concentrations of CO2 ... 
+The accuracy of both units for N~2~O was tested using 9 dry air cylinders containing known concentrations of N~2~O (and other species) as shown in Table 2. 
+
+```{r, results = 'asis'}
+load("rdata/tanks.Rdata")
+kable(tank_values, digits = 2, caption = "Contents of cylinders used in the N~2~O accuracy tests")
+```
+
+Each cylinder was measured for three 30-minute periods. The first 10 minutes of each period was excluded from the data shown below. 
+As both units showed a linear reponse to N~2~O, only a single-point calibration correction has applied to the N~2~O data so far.
+The resulting N~2~O concentrations are compared to the known cylinder values (obtained using our long-operational Shimadzu GC-ECD) and to the values obtained using a newer, in development GC-ECD system that was calibrated using the same 7 calibration tanks as were used to determine the linearity of the G5310 units. 
+
+
+
+```{r,include = FALSE}
+ecd_n2o_tank <- read_fwf("data/summary_report_ecd",  fwf_cols("UAN" = c(1,20), "date" = c(40,45), "N2O" = c(169,179), "sd" = c(180,187), "n" = c(188,191)),skip = 4, trim_ws = TRUE )  %>% 
+  mutate(instrument = "ECD")
+
+
+#read in RVI tank data, using the tools taught in the course: 
+#pull out only the info you need for the N2O comparison - extract N2O_C only
+s5100_n2o_tank <- read_fwf("data/rvi_n2o_co_all", 
+                    fwf_cols("date"= c(1,6), "time" = c(8,11), "type" =c(12,22), "UAN" = c(23,35), "N2O_C" = c(152, 161), "flag" = c(162,162), "N2O_dry" = c(173,181) ) , skip = 2, trim_ws = TRUE) %>% 
+  filter(type == "tank", flag %in% NA, str_starts(UAN, "UAN"))  %>% 
+  group_by(UAN, date) %>% summarise(n = n(), N2O = mean(N2O_C), sd = sd(N2O_C, na.rm = T)) %>% mutate(instrument = "JKADS5100")
+
+#read in data from JDAKS5099 
+s5099_n2o_tank <- read_fwf("data/jkads5099_n2o_co_all", 
+                           fwf_cols("date"= c(1,6), "time" = c(8,11), "type" =c(12,22), "UAN" = c(23,35), "N2O_C" = c(152, 161), "flag" = c(162,162) ) , skip = 2, trim_ws = TRUE) %>% 
+  filter(type == "tank", flag %in% NA, str_starts(UAN, "UAN"))  %>% 
+  group_by(UAN, date) %>% summarise(n = n(), N2O = mean(N2O_C), sd = sd(N2O_C, na.rm = T)) %>% mutate(instrument = "JKADS5099")
+
+#create UAN list to filter SHIM results with 
+
+tank_results <- bind_rows(ecd_n2o_tank,s5100_n2o_tank,s5099_n2o_tank)
+
+#first cut - use tank_values for SHIM 
+db_tanks <- select(tank_values, c(tank, CO2, N2O)) %>% rename(N2O_S1 = N2O)
+
+tanks <- left_join(db_tanks, tank_results, by = c("tank"= "UAN"))  %>% mutate(diff = N2O - N2O_S1)
+
+```
+
+
+ 
+```{r}
+ tanks %>% 
+  ggplot(aes(x = N2O_S1, y = N2O, colour = instrument)) + 
+  geom_point(alpha = 0.5) +
+  theme_bw() +
+  scale_colour_discrete(name = "Instrument", labels = c("ECD", "JKADS5099", "JKADS5100")) +
+  geom_abline(slope = 1) +
+  labs(y = expression("N"[2] * "O (ppb) "), x = expression("Shimadzu N"[2] * "O (ppb)"))
+
+
+#tanks %>% 
+#  ggplot(aes(x = N2O_S1, y = diff, colour = instrument)) + 
+#  geom_point(alpha = 0.5) +
+#  theme_bw() +
+#  scale_colour_discrete(name = "Instrument", labels = c("ECD", "JKADS5099", "JKADS5100")) +
+#  labs(y = "(New instrument - Shimadzu) (ppb)", x = expression("Shimadzu N"[2] * "O (ppb)"))
+
+tanks %>% 
+  ggplot(aes(x = CO2, y = diff, colour = instrument)) + 
+  geom_point(alpha= 0.5) +
+  theme_bw() +
+  scale_colour_discrete(name = "Instrument", labels = c("ECD", "JKADS5099", "JKADS5100")) +
+  labs(y = "(New instrument - Shimadzu) (ppb)", x = expression("CO"[2] * " (ppm)")) +
+  geom_hline(yintercept = 0)
+
+
+
+``` 
+
+The first figure shows the measured N~2~O values from JKADS5099, JKADS5100 and the new GC-ECD system against the known cylinder values. The black line is the 1:1 response line. 
+The second figure is a plot of the difference between the measured and the known N~2~O values, plotted against the amount of CO~2~ present in the cylinder. 
+
+All instruments agree reasonably well from ~450ppm CO~2~ onwards, but JKADS5100 shows a large bias (~2 ppb) below 425 ppm CO~2~. 
+
+The differences between the Shimadzu, the new GC-ECD system and JKADS5099 are sometimes larger than ideal (>0.1 ppb), and this warrants further investigation; however at this point it is clear that the JKADS5100 unit does not behave as expected.
+
+The results from the water and accuracy tests are concerning and deployment of JKADS5100 is not recommended. 

@@ -57,4 +57,3 @@ save(s5100, file = "rdata/JKADS5100_data")
 save(s5099, file = "rdata/JKADS5099_data")
 
 
-
