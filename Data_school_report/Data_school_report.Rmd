@@ -1,0 +1,131 @@
+---
+title: Evaluation of high-precision analytical techniques for measuring atmospheric nitrous oxide (N~2~O) 
+subtitle: 
+short_title: N~2~O instrumentation evaluation # Delete if not required
+
+author:  Elise-Andree Guerette
+affiliation: CSIRO Climate Science Centre - Atmospheric Composition & Chemistry - Major Greenhouse Gases # Or group/team
+photo: resources/img/photo.jpg
+
+output: DSreport::project_summary
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  results = 'asis',
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = 'center'
+)
+
+#Load libraries
+library(tidyverse)
+library(gapminder)
+library(kableExtra)
+#these top 3 are required for the poster to knit properly
+
+```
+
+
+# Introduction
+I am an Atmospheric Chemist who has recently joined the Major Greenhouse Gases team (GASLAB) at the Aspendale, VIC site. 
+<https://research.csiro.au/acc/capabilities/gaslab/>
+ 
+I started using R as part of my PhD and I was quickly hooked. Coding gives me both extreme joy and deep frustration, depending on whether my code works :) 
+I used R throughout my postdoc and I am now keen to use my R skills in my new role. 
+
+
+# My Project
+GASLAB maintains a suite of high-precision analytical instruments to measure the key greenhouse gases in the atmosphere. 
+Most of the instrumentation has been in service for many years; newer, even more precise instrumentation is now available, especially for the measurement of N~2~O.  
+Before we can implement these new methods into our operations, we need to ensure that they perform as expected and meet stringent standards for precision and accuracy. 
+The new methods should also be free from unwanted artefacts, and we need to devise a way of seamlessly integrating the new data within the long-term (>25 years) N~2~O observational record. 
+
+My goal for this project was to pull together data from various instruments that measure atmospheric nitrous oxide (N~2~O) to enable a comprehensive evaluation of their performance and guide our next steps in operationalising new instrumentation for use within GASLAB. 
+
+All new instrumentation is calibrated using the same suite of seven secondary standards. A number of air cylinders containing a range of ~ambient greenhouse gas concentrations are then analysed as 'unknowns' on each instrument. The results are compared to the assignments obtained with the long-standing operational method. 
+
+
+## Preliminary results
+
+This section will demonstrate the different visuals you might want use to show off your 
+project. Don't feel the need to go overboard, this is supposed to give a taste of the work you are
+doing rather than being a publication ready document.
+
+To get tables formatting correctly, use `knitr::kable` to convert the table to html format. If
+you also want to have alternate row highlighting, pass the result to `kable_styling('striped')` 
+from the `kableExtra` package.
+
+**Tables**
+```{r mytable, out.width='100%', echo = T}
+knitr::kable(head(gapminder, n = 5), format = "html", caption = "A table of data") %>% 
+  kable_styling("striped")
+```
+
+**Images from a file**
+
+![](resources/img/tidyverse.png){width=100px}
+
+**Plots from R**
+```{r standard-plot, out.width='60%', fig.align='center', fig.height= 4, fig.width=6, fig.cap="Yet another gapminder plot"}
+gapminder %>% 
+  filter(year == 1987) %>% 
+  ggplot(aes(x = gdpPercap, y = lifeExp, colour = continent, size = pop)) +
+  geom_point() +
+  scale_x_log10(labels = function(b) format(b, scientific = F)) +
+  scale_size(trans = "sqrt", guide = "none") +
+  scale_color_brewer(palette = "Set1") +
+  theme_linedraw() +
+  theme(legend.position = "bottom")
+```
+
+Your figure and table captions are automatically numbered and can be referenced in the text
+if needed: see eg. Table \@ref(tab:mytable) and Figure \@ref(fig:standard-plot)
+
+# My Digital Toolbox
+
+I have been trying to use the packages demonstrated during Data School, to make sure some of the content sticks. 
+I think dplyr is very powerful and the most intuitive package I have encountered for grouping and summarising data. 
+
+
+What digital tools have you been using in your project? Do you expect that everything will be able 
+to be completed within R, or will you need to work with multiple tools to get the right result?
+Which of the digital skills needed for your project have you learned since starting Data School?
+
+You can use all the usual R markdown features in writing a project summary, including lists:
+
+* R - dplyr, ggplot, ...
+* Python
+* SQL
+
+## Favourite tools
+![](resources/img/rmarkdown.png){width=100px} 
+![](resources/img/dplyr.png){ width=100px}
+
+I actually &hearts; Rmarkdown! I want to use it for everything! 
+
+And I &hearts; dbplyr (the database backend of dplyr) - it makes it so easy to 'speak' SQL. 
+
+
+
+# My time went ...
+Connecting to our database from R took a little more effort than I expected, and required the help of IM&T.  
+
+
+What parts of your project take the most time and effort? Were there any surprising challenges you
+encountered, and how did you solve them?
+
+# Next steps
+drying, sample delivery, flasks
+integration into database 
+
+What further steps do you wish your project could take? Or are there any new digital skills that you
+are keen to develop as a result of your involvement in the Data School?
+
+# My Data School Experience
+Participating in Data School has given me the impetus to start using R in my CSIRO work. There is a large 'experimental' component to my role, and I have found it difficult to find the time to sit down and code. 
+Aside from this poster, I have used the tools I have learned here to create a short pdf report detailing the results of tests I ran on a newly acquired instrument that was not performing up to the manufacturer's specifications. Using Rmarkdown, it was quick and easy to put something together (so much better than copy/pasting figures in e.g. Word or inserting them in LateX) and it has enabled my manager to start a discussion with the manufacturer. 
+
+I have enjoyed all the best pratice stuff, including the data/file management material, the data workflow sessions, version control, reproducibility principles... My computer always ends up being such a mess - I am hoping to start improving the situation! 
+These past few weeks I have been hosting a series of weekly Webex-based R workshop sessions for interested co-workers. I have been leading them so far, mostly presenting a package called 'openair', but I hope others will want to share their own code/knowledge/favourite packages soon since a few of them already use R. I am also planning to show my co-workers some of the stuff we covered in data school.
+
