@@ -1,72 +1,95 @@
-#this is an example taken from https://db.rstudio.com/getting-started/database-queries/ 
-#You can write your code in dplyr syntax, and dplyr will translate your code into SQL. 
-#There are several benefits to writing queries in dplyr syntax: you can keep the same consistent 
-#language both for R objects and database tables, no knowledge of SQL or the specific SQL variant is required, 
-#and you can take advantage of the fact that dplyr uses lazy evaluation. dplyr syntax is easy to read, 
-#but you can always inspect the SQL translation with the show_query() function.
-
-#In this example, we will query bank data in an Oracle database. 
-#We connect to the database by using the DBI and odbc packages. 
-#This specific connection requires a database driver and a data source name (DSN) 
-#that have both been configured by the system administrator. 
-#Your connection might use another method.
-#install.packages("odbc")
-#install.packages("DBI")
-#install.packages("dbplyr")
+#Updating this SQUALL script to remove some of the repetition across the project 
+#will be highest-level script to connect to database and define functions: 
+#get_ family of functions (with ability to select UANs and flags 
+#get_all returning a list of all three tables, can select UANs and flags   
+#get_uans - goes across all 3 tables and returns a df containing data for selected UANs - useful for anything - yes, good base for rest of code, will need tweaking but OK
+#get_Picarro_standards (build on get_uans(), summarising and adding formatting) - TODO
+#get_Picarro_drifts (in development) - TODO 
 
 library(DBI)
 library(dbplyr)
 library(dplyr)
 library(odbc)
-#sort(unique(odbcListDrivers()[[1]]))
 
-#con <- dbConnect(odbc(),
-#                 Driver = "ODBC Driver 17 for SQL Server",
-#                 Server = "squall-cdc.it.csiro.au",
-#                 Database = "gaslab",
-#                 UID = "NEXUS\\gue02h",
-#                 PWD = rstudioapi::askForPassword("Enter password"),
-#                 Port = 1433)
-#the above DOES NOT WORK :/ 
-
-#this works: 
+#establish connection to database 
 con <- dbConnect(odbc::odbc(), 
                  .connection_string = 'driver={SQL Server};server=squall-cdc.it.csiro.au;database=gaslab;trusted_connection=true')
-#this also works:
-#con <- dbConnect(odbc::odbc(), "gaslab") #this is using a DSN - had to set it up in Windows 
 
-#using odbc() 
-dbListTables(con) #this lists all tables in the database
-#data <- dbReadTable(con, "SHIM-1")
-#as_tibble(data)
+#dbDisconnect(con)
 
-#example usring dplyr or dbplyr?
-#q1 <- tbl(con, "bank") %>%
-#  group_by(month_idx, year, month) %>%
-#  summarise(
-#    subscribe = sum(ifelse(term_deposit == "yes", 1, 0)),
-#    total = n())
-#show_query(q1)
+#define functions 
+UAN_list <- c("20120148", "20150061", "20160337", "20190214", "20190543", "20100532", "20100778", "20160484", "999479")
 
-q_shim <- tbl(con, "SHIM-1")  %>% ###aha this actually works, the list thing was throwing me off
-  filter(`N2O flag` == 0) %>% 
-  select(- c(`Decimal Year`, `N2O flag`, `N2O ar mixing ratio`, `N2O ar mixing ratio sd`))  
-show_query(q_shim)
-
-shim_data <- collect(q_shim)  %>% rename(file = `File #`, date = `Date Started`, n = `N2O # aliquots`, N2O = `N2O ht mixing ratio`, sd = `N2O ht mixing ratio sd`) %>% 
-  mutate(instrument = "S1")
-
-
-q_c3 <- tbl(con, "CARLE-3")  %>% 
-  filter(`CO2 flag` == 0) %>% 
-  select(- c(`Decimal Year`, `CH4 flag`,`CH4 ar mixing ratio`, `CH4 ar mixing ratio sd`, `CO2 flag`,`CO2 ht mixing ratio`,`CO2 ht mixing ratio sd`))
+#grab all 'good' data from SHIM-1 table, based on heights 
+get_s1 <- function(uan = c(), flag = 0) {
+  q_shim <- tbl(con, "SHIM-1")  %>% 
+  select(- c(`Decimal Year`,  `N2O ar mixing ratio`, `N2O ar mixing ratio sd`)) %>%  #`N2O flag`,
+    filter(`N2O flag` %in% flag) 
+ 
+   if(is.null(uan)){
+    q_shim <-  q_shim 
+  } else{
+    q_shim <- q_shim   %>% 
+        filter(UAN %in% uan)
+  }
   
-c3_data <- collect(q_c3) %>% rename(file = `File #`, date = `Date Started`)
-#will rename more stuff once I know what I am doing
+  shim_data <- collect(q_shim)  %>% rename(file = `File #`, date = `Date Started`) #, n = `N2O # aliquots`, N2O = `N2O ht mixing ratio`, sd = `N2O ht mixing ratio sd`) %>% 
+  #mutate(instrument = "S1")
+  shim_data
+}
 
-q_r1 <- tbl(con, "RGA3-1")  %>% 
-  filter(`CO flag` == 0) %>% 
-  select(- c(`Decimal Year`, `H2 flag`,`H2 ar mixing ratio`, `H2 ar mixing ratio sd`, `CO flag`,`CO ar mixing ratio`,`CO ar mixing ratio sd`))
+#grab all 'good' data from CARLE-3 table, CO2 based on areas, CH4 based on heights 
+get_c3 <- function(uan = c(), flag = 0) {
+  q_c3 <- tbl(con, "CARLE-3")  %>% 
+  select(- c(`Decimal Year`, `CH4 ar mixing ratio`, `CH4 ar mixing ratio sd`, `CO2 ht mixing ratio`,`CO2 ht mixing ratio sd`)) %>%  #`CH4 flag`, `CO2 flag`
+  filter(`CO2 flag` %in% flag  ) #& `CH4 flag` %in% flag #not needed, data matched per flag in database 
+  if(is.null(uan)){
+    q_c3 <-  q_c3 
+  } else{
+    q_c3 <- q_c3   %>% 
+      filter(UAN %in% uan)
+  }
+  
+  c3_data <- collect(q_c3) %>% rename(file = `File #`, date = `Date Started`)
+  c3_data
+} 
 
-r1_data <- collect(q_r1) %>% rename(file = `File #`, date = `Date Started`)
-#will rename more stuff once I know what I am doing
+#grab all 'good' data from RGA3-1, based on heights for both CO and H2
+get_r1 <- function(uan = c(), flag = 0) {
+  q_r1 <- tbl(con, "RGA3-1")  %>% 
+    select(- c(`Decimal Year`, `H2 ar mixing ratio`, `H2 ar mixing ratio sd`, `CO ar mixing ratio`,`CO ar mixing ratio sd`)) %>% #`H2 flag`, `CO flag`
+    filter(`CO flag` %in% flag ) 
+  
+  if(is.null(uan)){
+    q_r1 <-  q_r1 
+  } else{
+    q_r1 <- q_r1   %>% 
+      filter(UAN %in% uan)
+  }
+  r1_data <- collect(q_r1) %>% rename(file = `File #`, date = `Date Started`)
+  r1_data
+}
+
+# create a get_all function  
+get_all <- function(uan = c(), flag = 0) {
+  s1 <- get_s1(uan, flag)
+  c3 <- get_c3(uan, flag)
+  r1 <- get_r1(uan, flag)
+  return(list(s1,c3,r1))
+}
+
+## get_uans 
+#similar to get_all, but needs a list of UANs and formats into a df 
+get_uans <- function(uan = c(), flag = 0) {
+  if(is.null(uan)) {return(print("Need to specify a list of UANs"))}
+  else{
+  s1 <- get_s1(uan, flag)
+  c3 <- get_c3(uan, flag)
+  r1 <- get_r1(uan, flag)
+ df <- full_join(c3,r1, by = c("UAN", "date", "file")) 
+ df <- full_join(df, s1, by = c("UAN", "date", "file")) %>% mutate(UAN = as.character(UAN))
+ return(df)}
+}
+
+
+
