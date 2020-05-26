@@ -24,6 +24,9 @@ library(gapminder)
 library(kableExtra)
 #these top 3 are required for the poster to knit properly
 
+#read in connection code and functions to access database 
+source("C:/Users/gue02h/cloudstor/N2O_comparison/scripts/get_data_from_squall.R")
+
 ```
 
 
@@ -37,95 +40,150 @@ I used R throughout my postdoc and I am now keen to use my R skills in my new ro
 
 # My Project
 GASLAB maintains a suite of high-precision analytical instruments to measure the key greenhouse gases in the atmosphere. 
-Most of the instrumentation has been in service for many years; newer, even more precise instrumentation is now available, especially for the measurement of N~2~O.  
+Most of the instrumentation has been in service for many years; newer, even more precise instrumentation is now available, especially for the measurement of nitrous oxide (N~2~O).  
 Before we can implement these new methods into our operations, we need to ensure that they perform as expected and meet stringent standards for precision and accuracy. 
-The new methods should also be free from unwanted artefacts, and we need to devise a way of seamlessly integrating the new data within the long-term (>25 years) N~2~O observational record. 
+The new methods should also be free from unwanted artefacts. 
+Once a new method is selected, we will need to seamlessly integrate the new data with the long-term (>25 years) N~2~O observational record. 
 
-My goal for this project was to pull together data from various instruments that measure atmospheric nitrous oxide (N~2~O) to enable a comprehensive evaluation of their performance and guide our next steps in operationalising new instrumentation for use within GASLAB. 
+My goal for this project was to pull together data from various instruments that measure atmospheric (N~2~O) to enable a comprehensive evaluation of their performance and guide our next steps in operationalising new instrumentation for use within GASLAB. 
 
-All new instrumentation is calibrated using the same suite of seven secondary standards. A number of air cylinders containing a range of ~ambient greenhouse gas concentrations are then analysed as 'unknowns' on each instrument. The results are compared to the assignments obtained with the long-standing operational method. 
+All new instrumentation is calibrated using the same suite of seven secondary standards. A number of air cylinders containing a range of ~ambient greenhouse gas concentrations are then analysed as 'unknowns' on each instrument. The results are compared to the assignments obtained with the long-standing operational method (SHIMADZU-1). 
 
+Three instruments are being tested as potential replacements for SHIMADZU-1: 
+
+* a GC-PDD system that measures N~2~O, CO~2~, CH~4~ and H~2~ 
+* a GC-ECD system that can measure N~2~O and SF~6~ 
+* a Picarro G5310 system (JKADS5099) that measures N~2~O and CO
+
+Although the Picarro cannot accommodate flask sample analysis, it could be useful to propagate the scale to cylinders, so is included in the analysis. 
+The performance of these new instruments is being assessed for N~2~O only at present.
 
 ## Preliminary results
 
-This section will demonstrate the different visuals you might want use to show off your 
-project. Don't feel the need to go overboard, this is supposed to give a taste of the work you are
-doing rather than being a publication ready document.
 
-To get tables formatting correctly, use `knitr::kable` to convert the table to html format. If
-you also want to have alternate row highlighting, pass the result to `kable_styling('striped')` 
-from the `kableExtra` package.
+```{r, include = FALSE}
+#get all the datasets in, combine them
 
-**Tables**
-```{r mytable, out.width='100%', echo = T}
-knitr::kable(head(gapminder, n = 5), format = "html", caption = "A table of data") %>% 
-  kable_styling("striped")
+#read in PDD summary report - extract C_HT
+pdd_n2o_tank <- read_fwf("data/summary_report_pdd",  fwf_cols("UAN" = c(1,20), "date" = c(40,45), "N2O" = c(147,153), "sd" = c(156,162), "n" = c(163,168)),
+                    skip = 4, trim_ws = TRUE ) %>% mutate(instrument = "PDD")
+
+#do the same for the ECD summary report but extract C_A 
+ecd_n2o_tank <- read_fwf("data/summary_report_ecd",  fwf_cols("UAN" = c(1,20), "date" = c(40,45), "N2O" = c(169,179), "sd" = c(180,187), "n" = c(188,191)),
+                    skip = 4, trim_ws = TRUE )  %>% mutate(instrument = "ECD")
+
+#read in data from JDAKS5099: 
+s5099_n2o_tank <- read_fwf("data/jkads5099_n2o_co_all", 
+                  fwf_cols("date"= c(1,6),  "type" =c(12,22), "UAN" = c(23,35), "N2O_C" = c(152, 161), 
+                           "flag" = c(162,162) ) , skip = 2, trim_ws = TRUE) %>% 
+  filter(type == "tank", flag %in% NA, str_starts(UAN, "UAN"))  %>% 
+  group_by(UAN, date) %>% summarise( n = n(), N2O = mean(N2O_C), sd = sd(N2O_C, na.rm = T)) %>% mutate(instrument = "JKADS5099")
+
+#combine new instrumentation dfs
+tank_results <- bind_rows(pdd_n2o_tank, ecd_n2o_tank,s5099_n2o_tank)
+
+#create UAN list to filter SHIM results with 
+UAN_list <- str_sub(levels(as.factor(tank_results$UAN)), start= 4 )
+
+#use UAN_list to extract data from the database: 
+squall_tanks <- get_uans(UAN_list) %>% group_by(UAN) %>% 
+  mutate(sum_N2O = `N2O ht mixing ratio`*`N2O # aliquots`, sum_sd = `N2O ht mixing ratio sd` *`N2O # aliquots`, 
+         sum_co2 = `CO2 ar mixing ratio`* `CO2 # aliquots`, 
+         sum_ch4 = `CH4 ht mixing ratio` *`CH4 # aliquots`) %>%
+  summarise(    CH4 = sum(sum_ch4, na.rm = T)/sum(`CH4 # aliquots`, na.rm = T), 
+            CO2 = sum(sum_co2, na.rm =       T)/sum(`CO2 # aliquots`, na.rm = T),
+            n_S1 = sum(`N2O # aliquots`, na.rm = T), N2O_S1 = sum(sum_N2O, na.rm = T)/sum(`N2O # aliquots`, na.rm = T), 
+            sd_S1 = sum(sum_sd, na.rm = T)/sum(`N2O # aliquots`, na.rm = T)) %>% 
+  mutate(UAN = paste0("UAN", UAN))
+
+squall_tanks$CO2[which(is.na(squall_tanks$CO2))] <- 0.98
+
+#combine everything 
+tanks <- left_join(squall_tanks, tank_results, by = "UAN")  %>% mutate(diff = N2O - N2O_S1)
+
+squall_ln <- rename(squall_tanks, n = n_S1, sd = sd_S1, N2O = N2O_S1) %>% mutate(instrument = "SHIMADZU") %>% 
+  select(-c(CO2, CH4))
+tanks_ln <- bind_rows(squall_ln, tank_results) %>% select(-date)
+
+
 ```
 
-**Images from a file**
+First, we explore the precision of the various instruments using the standard deviation of their measurements of the 'unknown' cylinders.
 
-![](resources/img/tidyverse.png){width=100px}
+Figure  \@ref(fig:precision-plot) shows the distribution of standard deviations obtained for each instrument. The best performing is the Picarro (JKADS5099), followed by the ECD system. 
 
-**Plots from R**
-```{r standard-plot, out.width='60%', fig.align='center', fig.height= 4, fig.width=6, fig.cap="Yet another gapminder plot"}
-gapminder %>% 
-  filter(year == 1987) %>% 
-  ggplot(aes(x = gdpPercap, y = lifeExp, colour = continent, size = pop)) +
-  geom_point() +
-  scale_x_log10(labels = function(b) format(b, scientific = F)) +
-  scale_size(trans = "sqrt", guide = "none") +
-  scale_color_brewer(palette = "Set1") +
-  theme_linedraw() +
-  theme(legend.position = "bottom")
+```{r precision-plot, fig.height= 3, fig.width=6, fig.cap= "Distribution of instrument precision" }
+tanks_ln  %>%
+  ggplot(aes(x = sd)) +
+  geom_histogram() +
+  facet_grid(~instrument)+ #, scales = "free_x") +
+  labs(x = "standard deviation") +
+  theme_bw()
+
 ```
 
-Your figure and table captions are automatically numbered and can be referenced in the text
-if needed: see eg. Table \@ref(tab:mytable) and Figure \@ref(fig:standard-plot)
+We then explore the accuracy of the new instruments by comparing the N~2~O values obtained with the new instruments to those obtained with SHIMADZU-1. 
+The convention in this field is to plot differences (instead of e.g. correlation plots). 
+
+Figure \@ref(fig:vsn2o-diffplot) shows the difference between the cylinder assignments obtained with the new instrumentation and those obtained with SHIMADZU-1. The differences are plotted against the SHIMADZU-1 N~2~O assignments. 
+The plot reveals a systematic offset between the new instruments and SHIMADZU-1 at higher N~2~O values - this could be due to differences in calibration scheme between the new and operational instrumentation. 
+
+The main feature of Figure \@ref(fig:vsn2o-diffplot) is the large differences seen at around 325 ppm. 
+To delve into this further, we plot the difference against the CO~2~ content of the cylinders. Ideally, the presence or absence of CO~2~ would not affect the N~2~O results. Figure \@ref(fig:vsco2-diffplot) shows that this is not the case. Further work is under way to quantify this CO~2~ cross-sensitivity.  
+
+``` {r vsn2o-diffplot, fig.cap = "Summary of accuracy for N~2~O, plotted vs. N~2~O assignments"}
+tanks %>% 
+  ggplot(aes(x = N2O, y = diff, colour = instrument)) + 
+  geom_point(alpha = 0.5) +
+  theme_minimal() +
+  scale_colour_discrete(name = "New instrument", labels = c("ECD", "JKADS5099", "PDD")) +
+  labs(y = expression("N"[2] * "O difference (New instrument - SHIM) (ppb) "), x = expression("N"[2] * "O (ppm)")) +
+  geom_hline(yintercept = 0)
+```
+
+```{r vsco2-diffplot, fig.cap = "Summary of accuracy for N~2~O, plotted vs. CO~2~ assignments" }
+tanks %>% 
+  ggplot(aes(x = CO2, y = diff, colour = instrument)) + 
+  # geom_errorbar(aes(ymin = lower, ymax = upper ), width = 5, colour = "grey") + 
+  geom_point(alpha = 0.5) +
+  theme_minimal() +
+  scale_colour_discrete(name = "New instrument", labels = c("ECD", "JKADS5099", "PDD", "SHIM")) +
+  labs(y = expression("N"[2] * "O difference (New instrument - SHIM) (ppb) "), x = expression("CO"[2] * " (ppm)")) +
+  geom_hline(yintercept = 0) +
+  geom_smooth(method = "lm")
+```
+
+
 
 # My Digital Toolbox
 
 I have been trying to use the packages demonstrated during Data School, to make sure some of the content sticks. 
+
 I think dplyr is very powerful and the most intuitive package I have encountered for grouping and summarising data. 
 
+Some of my favourite tools: 
 
-What digital tools have you been using in your project? Do you expect that everything will be able 
-to be completed within R, or will you need to work with multiple tools to get the right result?
-Which of the digital skills needed for your project have you learned since starting Data School?
-
-You can use all the usual R markdown features in writing a project summary, including lists:
-
-* R - dplyr, ggplot, ...
-* Python
-* SQL
-
-## Favourite tools
 ![](resources/img/rmarkdown.png){width=100px} 
 ![](resources/img/dplyr.png){ width=100px}
 
-I actually &hearts; Rmarkdown! I want to use it for everything! 
+I actually like Rmarkdown! It's fidly, but no worse than LateX :) 
 
 And I &hearts; dbplyr (the database backend of dplyr) - it makes it so easy to 'speak' SQL. 
 
 
-
 # My time went ...
 Connecting to our database from R took a little more effort than I expected, and required the help of IM&T.  
-
-
-What parts of your project take the most time and effort? Were there any surprising challenges you
-encountered, and how did you solve them?
+I also spent considerable time thinking about my workflow and writing functions to try to limit code duplication across my project(s). 
 
 # Next steps
-drying, sample delivery, flasks
-integration into database 
+There are experimental next steps, like optimising sample delivery to the new instrumentation and widening the tests to include flask samples. There is also work to be done (both in the lab and in R) to fully characterise the CO~2~ cross-sensitivity.
+There are also more involved coding tasks, such as integration of the new instrumentation into the database (yikes! luckily I don't have to do this myself).  
 
-What further steps do you wish your project could take? Or are there any new digital skills that you
-are keen to develop as a result of your involvement in the Data School?
 
 # My Data School Experience
 Participating in Data School has given me the impetus to start using R in my CSIRO work. There is a large 'experimental' component to my role, and I have found it difficult to find the time to sit down and code. 
 Aside from this poster, I have used the tools I have learned here to create a short pdf report detailing the results of tests I ran on a newly acquired instrument that was not performing up to the manufacturer's specifications. Using Rmarkdown, it was quick and easy to put something together (so much better than copy/pasting figures in e.g. Word or inserting them in LateX) and it has enabled my manager to start a discussion with the manufacturer. 
 
 I have enjoyed all the best pratice stuff, including the data/file management material, the data workflow sessions, version control, reproducibility principles... My computer always ends up being such a mess - I am hoping to start improving the situation! 
-These past few weeks I have been hosting a series of weekly Webex-based R workshop sessions for interested co-workers. I have been leading them so far, mostly presenting a package called 'openair', but I hope others will want to share their own code/knowledge/favourite packages soon since a few of them already use R. I am also planning to show my co-workers some of the stuff we covered in data school.
+These past few weeks I have been hosting a series of weekly Webex-based R workshop sessions for interested co-workers. I have been leading them so far, mostly presenting a package called 'openair', but I hope others will want to share their own code/knowledge/favourite packages soon (a few of them already use R). 
 
