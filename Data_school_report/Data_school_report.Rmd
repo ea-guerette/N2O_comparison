@@ -99,8 +99,8 @@ squall_tanks <- get_uans(UAN_list) %>% group_by(UAN) %>%
 squall_tanks$CO2[which(is.na(squall_tanks$CO2))] <- 0.98
 
 #combine everything 
-tanks <- right_join(squall_tanks, tank_results, by = "UAN")  %>% mutate(diff = N2O - N2O_S1)
-#this was left join - was a mistake - version on DS website is wrong
+tanks <- left_join(squall_tanks, tank_results, by = "UAN")  %>% mutate(diff = N2O - N2O_S1)
+
 
 squall_ln <- rename(squall_tanks, n = n_S1, sd = sd_S1, N2O = N2O_S1) %>% mutate(instrument = "SHIMADZU") %>% 
   select(-c(CO2, CH4))
