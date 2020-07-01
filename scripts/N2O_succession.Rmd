@@ -1,0 +1,325 @@
+---
+title: "GASLAB N~2~O instrumentation succession planning"
+output: 
+  bookdown::pdf_document2: default
+date: '`r paste("First created: 20-May-2020. Updated:", format(Sys.Date(),"%d-%b-%Y"))`'
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, 
+  results = 'asis',
+  warning = FALSE,
+  message = FALSE,
+  fig.align = 'center')
+
+library(tidyverse)
+library(knitr)
+library(cowplot)
+library(openair)
+library(RColorBrewer)
+#read in connection code and functions to access database 
+source("C:/Users/gue02h/cloudstor/N2O_comparison/scripts/get_data_from_squall.R")
+
+```
+\newpage
+
+
+# Context
+This work sits within a wider effort to refresh GASLAB instrumentation. A GC-PDD system meant to replace all current GASLAB GCs (Shimadzu-1 (N~2~O), Carle-3 (CO~2~ and CH~4~), RGA3-1 (H~2~ and CO)) has been in development at Aspendale for a number of years. The current incarnation of the GC-PDD system can measure CO~2~, CH~4~, H~2~ and N~2~O.
+
+An in-depth evaluation of the performance of this GC-PDD system for N~2~O commenced following a failure (now resolved) of the current operational N~2~O GC (Shimadzu-1) in ~September-November 2019.    
+
+Shimadzu-1 has been in operation since July 1992. There are four main motivations for finding a replacement (aside from its recent hiccup): 
+
+* Support and replacement parts are no longer available through the manufacturer. 
+* The performance of the system has been steadily decreasing since ~2010 (see Figure \@ref(fig:shimprecision-plot)). 
+* There is evidence that Shimadzu-1 is affected by a CO~2~ interference. Hall et al. saw an effect of 0.005 ppb N~2~O per ppm CO~2~ on their P5 system. Preliminary exploration of this issue at Aspendale indicates the effect is 0.003-0.004 ppb per ppm CO~2~ on Shimadzu-1. 
+* Newer, more precise instrumentation, including the GC-PDD system, is now available
+
+As well as the GC-PDD system, other N~2~O instrumention is being tested for integration into GASLAB operations. These include a GC-ECD based on the NOAA system and a Picarro G5310s.
+
+This document summarises the work commpleted to date and highlights required next steps. 
+
+UPDATE: Results so far indicate that the GC-ECD system may be the best option for flask sampling.
+
+```{r, include = FALSE}
+#read in "all" shim data 
+shim_all <- get_s1()
+
+
+p1 <- shim_all %>% filter(`N2O # aliquots` >3) %>% mutate(year = str_sub(date, start =1, end = 4)) %>% group_by(year) %>% 
+  summarise(mean_sd = mean(`N2O ht mixing ratio sd`), median_sd = median(`N2O ht mixing ratio sd`)) %>% 
+  ggplot(aes(x=as.numeric(year), y = median_sd)) + 
+  geom_point(colour = "red") +
+  geom_line(colour = "red") + 
+  theme_bw() + 
+  labs(x = "date", 
+       y = "standard deviation")
+
+#combine both plots 
+mean_shim_sd <- shim_all %>% filter(`N2O # aliquots` >3) %>% mutate(year = str_sub(date, start =1, end = 4)) %>% group_by(year) %>%
+  summarise(mean_sd = mean(`N2O ht mixing ratio sd`)) %>% 
+  mutate(date = as.POSIXct(year, format= "%Y"))
+
+
+p2 <- shim_all %>%  filter(`N2O # aliquots`>3) %>% rename(sd = `N2O ht mixing ratio sd`) %>% 
+  ggplot(aes(x=date, y = sd)) + geom_point(colour = "black", alpha = 0.5) +
+  geom_line(mean_shim_sd, mapping = aes(x = date, y = mean_sd), colour = "red") +
+  labs(y = "standard deviation") +
+  theme_bw() + ylim(c(0,2)) 
+
+```
+
+```{r shimprecision-plot, fig.height= 3, fig.width=6, fig.cap= "Shimadzu-1 precision over time. Panel a shows all results (n>3) as black dots. The red line is the median, calculated on a yearly basis. Panel b shows the median only. Note that the panels have different y scales "} 
+a <- plot_grid(p2, p1, labels = "auto")
+plot(a)
+```
+\newpage
+# Comparison tests 
+
+## Method
+The three instruments being tested as potential replacements for Shimadzu-1 are: 
+
+* a GC-PDD system that measures N~2~O, CO~2~, CH~4~ and H~2~ 
+* a GC-ECD system that can measure N~2~O and SF~6~ (based on the NOAA system)
+* a Picarro G5310 that measures N~2~O and CO
+
+Although the Picarro cannot accommodate flask analyses, it could be useful to propagate the scale to cylinders. 
+
+All three instruments can measure other species as well as N~2~O, but their performance is being assessed for N~2~O only at present.
+
+
+```{r}
+#get secondary standard contents from SQUALL
+UAN_stds <- c("994443","20110539","996703","994432",  "20190501", "994030", "951539")
+standards <- get_uans(UAN_stds) %>% group_by(UAN) %>% 
+  mutate(sum_n2o = `N2O ht mixing ratio`*`N2O # aliquots`, sum_sd = `N2O ht mixing ratio sd` *`N2O # aliquots`, 
+         sum_co2 = `CO2 ar mixing ratio`* `CO2 # aliquots`, 
+         sum_ch4 = `CH4 ht mixing ratio` *`CH4 # aliquots`,
+         sum_co = `CO ht mixing ratio` * `CO # aliquots`, 
+         sum_h2 = `H2 ht mixing ratio` * `H2 # aliquots`) %>%
+  summarise(    CH4 = sum(sum_ch4, na.rm = T)/sum(`CH4 # aliquots`, na.rm = T), 
+                CO2 = sum(sum_co2, na.rm = T)/sum(`CO2 # aliquots`, na.rm = T),
+                CO = sum(sum_co, na.rm = T)/sum(`CO # aliquots`, na.rm = T), 
+                H2 = sum(sum_h2, na.rm = T)/sum(`H2 # aliquots`, na.rm = T), 
+                N2O = sum(sum_n2o, na.rm = T)/sum(`N2O # aliquots`, na.rm = T)) %>% 
+  arrange(N2O)
+
+```
+
+```{r std-table}
+knitr::kable(standards, digits = 2,  caption = "Contents of secondary standards used to calibrate new instrumentation") #ugly table - using format = 'markdown' looks better but caption disappears and cross-reference is broken :/ 
+```
+
+All new instrumentation is calibrated using the same suite of `r nrow(standards)` secondary standards. Their contents are listed in Table \@ref(tab:std-table).
+
+```{r, include =FALSE}
+#this chunk is where data is read in and combine in the three dfs needed: 
+#tanks, tanks_ln and ptanks (Picarro as truth)
+
+#read in PDD, ECD and Picarro data
+
+pdd_n2o_tank <- read_fwf("data/summary_report_pdd",  fwf_cols("UAN" = c(1,20), "date" = c(40,45), "N2O" = c(147,153), "sd" = c(156,162), "n" = c(163,168)),
+                    skip = 4, trim_ws = TRUE ) %>% mutate(instrument = "PDD")
+
+#do the same for the ECD summary report but extract C_A 
+ecd_n2o_tank <- read_fwf("data/summary_report_ecd",  fwf_cols("UAN" = c(1,20), "date" = c(40,45), "N2O" = c(169,179), "sd" = c(180,187), "n" = c(188,191)),
+                    skip = 4, trim_ws = TRUE )  %>% mutate(instrument = "ECD")
+
+
+#read in data from JDAKS5099: 
+s5099_n2o_tank <- read_fwf("data/jkads5099_n2o_co_all", 
+                           fwf_cols("date"= c(1,6), "type" =c(12,22), "UAN" = c(23,35), "N2O_C" = c(152, 161),
+                                    "flag" = c(162,162) ) , skip = 2, trim_ws = TRUE) %>% 
+  filter(type == "tank", flag %in% NA, str_starts(UAN, "UAN"))  %>% 
+  group_by(UAN, date) %>% summarise( n = n(), N2O = mean(N2O_C), sd = sd(N2O_C, na.rm = T)) %>% 
+  mutate(instrument = "JKADS5099")
+
+#combine results: 
+tank_results <- bind_rows(pdd_n2o_tank, ecd_n2o_tank,s5099_n2o_tank) 
+
+#create UAN list to filter SHIM results with 
+UAN_list <- str_sub(levels(as.factor(tank_results$UAN)), start= 4 )
+
+#get SQUALL data for UAN_list 
+squall_tanks <- get_uans(UAN_list) %>% group_by(UAN) %>% 
+  mutate(sum_N2O = `N2O ht mixing ratio`*`N2O # aliquots`, sum_sd = `N2O ht mixing ratio sd` *`N2O # aliquots`, 
+         sum_co2 = `CO2 ar mixing ratio`* `CO2 # aliquots`, 
+         sum_ch4 = `CH4 ht mixing ratio` *`CH4 # aliquots`) %>%
+  summarise(CH4 = sum(sum_ch4, na.rm = T)/sum(`CH4 # aliquots`, na.rm = T), 
+            CO2 = sum(sum_co2, na.rm =       T)/sum(`CO2 # aliquots`, na.rm = T),
+            n_S1 = sum(`N2O # aliquots`, na.rm = T), N2O_S1 = sum(sum_N2O, na.rm = T)/sum(`N2O # aliquots`, na.rm = T), 
+            sd_S1 = sum(sum_sd, na.rm = T)/sum(`N2O # aliquots`, na.rm = T)) %>% 
+  mutate(UAN = paste0("UAN", UAN))
+
+squall_tanks$CO2[which(is.na(squall_tanks$CO2))] <- 0.98
+#need to manually add a value for CO2 for UAN999479 because there is no "flag == 0" data for it
+#would need to change my query to select everything, and keep other flags when there are no flag ==0 data 
+#This is what SQUALL does I think in the online UAN query.  
+#on the todo /nice to have list
+
+tanks <- left_join(squall_tanks, tank_results, by = "UAN")  %>% mutate(diff = N2O - N2O_S1) 
+
+squall_ln <- rename(squall_tanks, n = n_S1, sd = sd_S1, N2O = N2O_S1) %>% mutate(instrument = "SHIMADZU") %>% 
+  select(-c(CO2, CH4))
+tanks_ln <- bind_rows(squall_ln, tank_results) %>% select(-date)
+
+
+#also need "Picarro as the truth": 
+temp_tanks <- bind_rows(squall_ln, ecd_n2o_tank, pdd_n2o_tank)
+s5099_ln <- s5099_n2o_tank %>%  rename(N2O_pic = N2O , sd_pic = sd) %>% select(-c(instrument, date, n))
+ 
+temp_ptanks <- inner_join(s5099_ln, temp_tanks, by = "UAN")
+ptanks <- inner_join(temp_ptanks, select(squall_tanks, c(UAN,CO2,CH4)), by = "UAN") %>%  
+  mutate(diff = N2O - N2O_pic)
+
+
+```
+
+
+A number of air cylinders containing a range of ~ambient greenhouse gas concentrations are then analysed as 'unknowns' on each instrument. On the GCs, several (>3) aliquots were sampled; on the Picarro, the tanks were measured for three 30-minute periods. The first 10 minutes of each period were excluded from the data shown below. The results are compared to the assignments obtained on Shimadzu-1.
+
+We first assess the precision of the instruments by looking at the spread of standard deviations in the measurements of the 'unknown' cylinders. We then assess the accuracy of the measurements.  
+We also explore CO~2~ cross-sensitivity.
+
+
+## Some notes/considerations
+
+* The GC-PDD system requires only He as a carrier/discharge gas. Its response for N~2~O is almost linear. Results presented here were obtained with a 2ml sample loop.
+* The GC-ECD system contains a radioactive source (similar to Shimadzu-1), requires N~2~ and CO~2~ as carrier/doping gases. The results presented here we obtained with a detector temperature of 380$^\circ$C. We have since reduced this to 350$^\circ$C. Its reponse for N~2~O is non linear but manageable. There is no MFC in the current sample delivery system. 
+* The Picarro cannot accommodate flask sampling, but could be used to propagate the scale to cylinders. Its response for N~2~O seems linear, which should make maintaining calibration relatively easy over a potentially very wide range of concentrations. Fewer tanks have been analysed on this instrument than on the other two.   
+
+
+## Results 
+
+### Precision
+
+Figure \@ref(fig:precision-plot) shows the standard deviation of the tank measurements on all four instruments. As expected, Shimadzu-1 has the poorest precision. The Picarro has the best performance. The two new GCs have similar precision. 
+
+```{r precision-plot, fig.height= 3, fig.width=6, fig.cap = "Distribution of instrument precision" }
+tanks_ln  %>% filter(n >3) %>% 
+  ggplot(aes(x = sd)) +
+  geom_histogram(col ="white") +
+  facet_grid(~instrument)+ #, scales = "free_x") +
+  labs(x = "standard deviation")+
+  theme_bw() + 
+  theme(
+    panel.grid.minor = element_blank(),
+    strip.background = element_rect(fill = "white"))
+```
+
+### Accuracy 
+
+Figure \@ref(fig:diffvsn2o-plot) shows the differences between the new instrumentation and Shimadzu-1, plotted against the N~2~O tank assignments. 
+
+This first look at accuracy is disappointing, with differences between the PDD system and Shimadzu-1 of up to 3 ppb. The other two systems show differences of up to 1 ppb. Ideally, we would like agreement to within 0.1 ppb (WMO recommendation) or at least to within the current Shimadzu-1 precision (~0.5 ppb)).  
+
+The plots also reveal a hint of a N~2~O dependence, especially at higher N~2~O values. This could due to differences in the calibration scheme between the new instrumentation and Shimadzu-1. 
+
+COMMENT: the highest primary std contains ~360 ppb - so the assignment of the two highest secondary standards may be inaccurate. 
+
+(ref:cap-diffvsn2o-plot) N~2~O differences plotted against N~2~O, coloured by standard deviation
+
+```{r diffvsn2o-plot, fig.height=4, fig.width=8, fig.cap = "(ref:cap-diffvsn2o-plot)" }
+myBlues <- brewer.pal(9, name = "Blues")
+myBlues <- myBlues[4:9]
+scatterPlot(tanks, x = "N2O", y = "diff", z = "sd", type = "instrument", 
+            cols = myBlues, main = "", layout = c(3,1), alpha = 0.8,
+            ref.y = list(h = 0, lty = 5), key.footer = "std. dev.",  
+            xlab = expression("N" [2] * "O (ppb)"), 
+            ylab =  expression("N" [2] *"O difference (ppb) (new inst. - SHIM)") )
+```
+
+
+### Testing for CO~2~ interference 
+
+Figure \@ref(fig:diffvsco2-plot) shows the differences between the new instrumentation and Shimadzu-1, plotted against the CO~2~ content of the tanks. 
+The GC-PDD system shows quite a strong dependence, that explains most of the scatter.
+The GC-ECD and the Picarro show a slight dependence, of the same magnitude. Could be Shimadzu-1 induced? 
+
+INTRODUCE TEST FLASK RESULTS HERE
+
+
+As an alternative test, assume that Picarro is the 'truth' and remake the plot (Figure \@ref(fig:difffromPicvsco2-plot)).  
+
+
+(ref:cap-diffvsco2-plot) N~2~O differences plotted against CO~2~, coloured by N~2~O, with linear regression
+
+```{r diffvsco2-plot, fig.height=5, fig.width=10, fig.cap = "(ref:cap-diffvsco2-plot)"}
+scatterPlot(tanks, x = "CO2", y = "diff", z = "N2O", type = "instrument", 
+            cols = "Blues", pch = 16, cex = 0.5, linear = T, 
+            layout = c(3,1), fontsize = 13,  
+            ref.y = list(h = 0, lty = 5), main = "", key.footer = expression("N" [2] * "O (ppb)"),
+            xlab = expression("CO" [2] * " (ppm)"), 
+            ylab =  expression("N" [2] *"O difference (ppb) (new inst. - SHIM)") )
+```
+
+
+(ref:cap-difffromPicvsco2-plot) N~2~O differences (Picarro - instrument) plotted against CO~2~, coloured by N~2~O, with linear regression
+
+```{r difffromPicvsco2-plot, fig.height=5, fig.width=10, fig.cap = "(ref:cap-difffromPicvsco2-plot)"}
+scatterPlot(ptanks, x = "CO2", y = "diff", z = "N2O", type = "instrument", 
+            cols = myBlues, pch = 16, cex = 0.5, linear = T, 
+            layout = c(3,1), fontsize = 13,  
+            ref.y = list(h = 0, lty = 5), main = "", key.footer = expression("N" [2] *"O (ppb)"),
+            xlab = expression("CO" [2] * " (ppm)"), 
+            ylab =  expression("N" [2] *"O difference (ppb) (inst - Picarro)") )
+```
+
+There are fewer data points available, but the resulting trends tie in with the preliminary CO~2~ cross-sensitivity tests conducted on the PDD, ECD and SHIMADZU-1 systems. 
+
+
+
+## Next steps 
+
+* rerun analysis with updated working standard assignments 
+* double check outliers - are we missing something (an interference from something else )
+* Extend comparison to flasks? a bit difficult because of corrections applied in the database but not on the results from the new instrumentation 
+
+## Conclusions 
+Based on the results above, the ECD system seems to be the best option to replace Shimadzu-1. It has adequate precision, and is not affected by CO~2~ interference. It also opens up the possibility of adding SF~6~ to GASLAB's suite of measured species.
+
+The GC-PDD will provide backup N~2~O measurements if needed - we will need to apply a CO~2~ correction. 
+
+# Making replacement operational
+
+* better location/more space around the instrument 
+* better sample introduction system - MFC + carousel
+* dryer 
+* integration with the database
+
+There are three options/approaches to making the ECD operational: 
+
+1. 'drop in' the Agilent GC in place of the Shimadzu, keeping the current carousel, dryer, 'control box', integrator and terminal. The analog signal from the new GC would be connected to the integrator (needs 0 to 1 signal). Would need new integrator method, and control of internal valves. Advantage is that the link to SQUALL is preserved; however the data would end up in the SHIM-1 table, which I don't think is the best way forward. No easy way to handle the new SF~6~ data stream. 
+
+2. Replace Shimadzu, 'control box', integrator and terminal with new GC + computer (GCWerks). We can keep the carousel + dryer. No immediate database link - need good backup of GCWerks data/settings. Advantages - GCWerks control + processing - easy to rework the data if needed. Would need its own Linux box + working standard.
+
+3. Integrate the new ECD system with the PDD system and the new carousel + dryer system. The advantage is that we do things only once. The disadvantage is that the PDD, the carousel and the dryer are not yet ready. This delays the ECD deployment indefinitely (1-2 years?). There would probably be no immediate database integration either. Also, any tinkering needed on any parts of the system (including adding CO capability) would interrupt operational use of the ECD. The temptation would then be to keep running flasks on Shimadzu-1, instead of taking advantage of the increased precision and accuracy of the ECD system. 
+
+I think of Option 1 as an emergency back up solution. 
+
+Option 3 is the ambitious end goal: one new, completely integrated system; however, this has been in the works for years and we are not there yet. 
+
+I think Option 2 is the way to go. It is a stand alone improvement to the lab that can be implemented pretty quickly. 
+It will make us take the plunge and force us to iron out how we will combine GCWerks and the new database. It should give us better N~2~O measurements right away. Also, it lets us make a start on the SF~6~ measurements sooner than either of the other two options. 
+
+If we choose Option 2, two things need to happen pretty quickly: 
+
+* wrapping up of the Shimadzu-1 record (see next section) 
+* thorough testing of the ECD system at 350$^\circ$C (ongoing)
+
+# Wrapping up Shimadzu-1 record 
+* Determine empirical CO~2~ correction 
+  * Does it depend on detector temperature? 
+  * Have any other parameters changed over time? Do they impact this correction? 
+* Implement correction - revise entire record - probably mostly an issue for samples containing CO~2~ that is very different from the CO~2~ present in the working standard 
+* Finalise code etc. prior to switching off Shimadzu-1. Correction will need to be implemented in the new database - so the record can be revised when there is a scale change (either N~2~O or CO~2~). 
+* Publish entire record + ESSD paper 
+
+# HSE considerations 
+
+# TO DO
+* plot response curves for all four instruments 
+* finish testing ECD at 350$^\circ$C
+* refill test flasks + repeat CO~2~ cross-sensitivity test (more flasks? filled differently to get finer control of final CO~2~ concentration range). 
