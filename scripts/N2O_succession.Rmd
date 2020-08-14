@@ -26,22 +26,20 @@ source("C:/Users/gue02h/cloudstor/N2O_comparison/scripts/get_data_from_squall.R"
 
 
 # Context
-This work sits within a wider effort to refresh GASLAB instrumentation. A GC-PDD system meant to replace all current GASLAB GCs (Shimadzu-1 (N~2~O), Carle-3 (CO~2~ and CH~4~), RGA3-1 (H~2~ and CO)) has been in development at Aspendale for a number of years. The current incarnation of the GC-PDD system can measure CO~2~, CH~4~, H~2~ and N~2~O.
 
-An in-depth evaluation of the performance of this GC-PDD system for N~2~O commenced following a failure (now resolved) of the current operational N~2~O GC (Shimadzu-1) in ~September-November 2019.    
-
-Shimadzu-1 has been in operation since July 1992. There are four main motivations for finding a replacement (aside from its recent hiccup): 
+Shimadzu-1 has been in operation since July 1992. There are four main motivations for finding a replacement: 
 
 * Support and replacement parts are no longer available through the manufacturer. 
 * The performance of the system has been steadily decreasing since ~2010 (see Figure \@ref(fig:shimprecision-plot)). 
-* There is evidence that Shimadzu-1 is affected by a CO~2~ interference. Hall et al. saw an effect of 0.005 ppb N~2~O per ppm CO~2~ on their P5 system. Preliminary exploration of this issue at Aspendale indicates the effect is 0.003-0.004 ppb per ppm CO~2~ on Shimadzu-1. 
-* Newer, more precise instrumentation, including the GC-PDD system, is now available
+* There is evidence that Shimadzu-1 is affected by a CO~2~ interference. Hall et al. 2006 saw an effect of 0.005 ppb N~2~O per ppm CO~2~ on their P5 system. Preliminary exploration of this issue at Aspendale indicates the effect is 0.003-0.004 ppb per ppm CO~2~ on Shimadzu-1. 
+* Newer, more precise instrumentation is now available
 
-As well as the GC-PDD system, other N~2~O instrumention is being tested for integration into GASLAB operations. These include a GC-ECD based on the NOAA system and a Picarro G5310s.
+A GC-PDD system meant to replace all current GASLAB GCs (Shimadzu-1 (N~2~O), Carle-3 (CO~2~ and CH~4~), RGA3-1 (H~2~ and CO)) has been in development at Aspendale for a number of years. The current configuration of the GC-PDD system can measure CO~2~, CH~4~, H~2~ and N~2~O. Work on CO separation is ongoing. An in-depth evaluation of the performance of this GC-PDD system for N~2~O commenced following a failure (now resolved) of the current operational N~2~O GC (Shimadzu-1) in ~September-November 2019.
 
-This document summarises the work commpleted to date and highlights required next steps. 
+As well as the GC-PDD system, a GC-ECD based on the NOAA system and a Picarro G5310s are being tested for potential integration into GASLAB operations.
 
-UPDATE: Results so far indicate that the GC-ECD system may be the best option for flask sampling.
+This document summarises the work completed to date and highlights required next steps. 
+
 
 ```{r, include = FALSE}
 #read in "all" shim data 
@@ -71,23 +69,23 @@ p2 <- shim_all %>%  filter(`N2O # aliquots`>3) %>% rename(sd = `N2O ht mixing ra
 
 ```
 
-```{r shimprecision-plot, fig.height= 3, fig.width=6, fig.cap= "Shimadzu-1 precision over time. Panel a shows all results (n>3) as black dots. The red line is the median, calculated on a yearly basis. Panel b shows the median only. Note that the panels have different y scales "} 
+```{r shimprecision-plot, fig.height= 3, fig.width=6, fig.cap= "Shimadzu-1 precision over time. Panel a shows all results (n>3) as black dots. The red line is the median, calculated on a yearly basis. Panel b shows the median only. Note that the panels have different y scales"} 
 a <- plot_grid(p2, p1, labels = "auto")
 plot(a)
 ```
 \newpage
-# Comparison tests 
+# Potential replacement instrumentation
+## Description
+## Initial comparison tests
+### Method
 
-## Method
 The three instruments being tested as potential replacements for Shimadzu-1 are: 
 
-* a GC-PDD system that measures N~2~O, CO~2~, CH~4~ and H~2~ 
-* a GC-ECD system that can measure N~2~O and SF~6~ (based on the NOAA system)
-* a Picarro G5310 that measures N~2~O and CO
+* the GC-PDD system (N~2~O, CO~2~, CH~4~ and H~2~)
+* a GC-ECD system (N~2~O and SF~6~, based on the NOAA system)
+* a Picarro G5310 (N~2~O and CO)
 
-Although the Picarro cannot accommodate flask analyses, it could be useful to propagate the scale to cylinders. 
-
-All three instruments can measure other species as well as N~2~O, but their performance is being assessed for N~2~O only at present.
+Their performance is being assessed for N~2~O only at present.
 
 
 ```{r}
@@ -113,6 +111,8 @@ knitr::kable(standards, digits = 2,  caption = "Contents of secondary standards 
 ```
 
 All new instrumentation is calibrated using the same suite of `r nrow(standards)` secondary standards. Their contents are listed in Table \@ref(tab:std-table).
+
+INCLUDE INSTRUMENT RESPONSE CURVES HERE (or in Results?)
 
 ```{r, include =FALSE}
 #this chunk is where data is read in and combine in the three dfs needed: 
@@ -165,6 +165,8 @@ squall_ln <- rename(squall_tanks, n = n_S1, sd = sd_S1, N2O = N2O_S1) %>% mutate
   select(-c(CO2, CH4))
 tanks_ln <- bind_rows(squall_ln, tank_results) %>% select(-date)
 
+#need to pull out test flasks from tanks 
+#prob need 'expected values' to make the plot - but there was growth so I don't know 
 
 #also need "Picarro as the truth": 
 temp_tanks <- bind_rows(squall_ln, ecd_n2o_tank, pdd_n2o_tank)
@@ -181,19 +183,20 @@ ptanks <- inner_join(temp_ptanks, select(squall_tanks, c(UAN,CO2,CH4)), by = "UA
 A number of air cylinders containing a range of ~ambient greenhouse gas concentrations are then analysed as 'unknowns' on each instrument. On the GCs, several (>3) aliquots were sampled; on the Picarro, the tanks were measured for three 30-minute periods. The first 10 minutes of each period were excluded from the data shown below. The results are compared to the assignments obtained on Shimadzu-1.
 
 We first assess the precision of the instruments by looking at the spread of standard deviations in the measurements of the 'unknown' cylinders. We then assess the accuracy of the measurements.  
-We also explore CO~2~ cross-sensitivity.
+
+We also explore CO~2~ cross-sensitivity, using the results from the 'unknown' tank measurements, but also through test flasks containing a set value of N~2~O and a range of CO~2~ (TODO) and through historical data in the case of Shimadzu-1 (TODO).
 
 
-## Some notes/considerations
+#### Some notes/considerations
 
-* The GC-PDD system requires only He as a carrier/discharge gas. Its response for N~2~O is almost linear. Results presented here were obtained with a 2ml sample loop.
-* The GC-ECD system contains a radioactive source (similar to Shimadzu-1), requires N~2~ and CO~2~ as carrier/doping gases. The results presented here we obtained with a detector temperature of 380$^\circ$C. We have since reduced this to 350$^\circ$C. Its reponse for N~2~O is non linear but manageable. There is no MFC in the current sample delivery system. 
+* The GC-PDD system requires only He as a carrier/discharge gas. Its response for N~2~O is almost linear. Results presented here were obtained with a 2ml sample loop. Concentrations are based on peak heights.
+* The GC-ECD system contains a radioactive source (similar to Shimadzu-1), requires N~2~ and CO~2~ as carrier/doping gases. The results presented here were obtained with a detector temperature of 380$^\circ$C. We have since reduced this to 350$^\circ$C to try to avoid detector shut downs (but they keep occuring - BM talked to Agilent + improved detector insulation). Its reponse for N~2~O is non linear but manageable. There is no MFC in the current sample delivery system. Concentrations are based on peak areas. 
 * The Picarro cannot accommodate flask sampling, but could be used to propagate the scale to cylinders. Its response for N~2~O seems linear, which should make maintaining calibration relatively easy over a potentially very wide range of concentrations. Fewer tanks have been analysed on this instrument than on the other two.   
 
 
-## Results 
+### Results
 
-### Precision
+#### Precision
 
 Figure \@ref(fig:precision-plot) shows the standard deviation of the tank measurements on all four instruments. As expected, Shimadzu-1 has the poorest precision. The Picarro has the best performance. The two new GCs have similar precision. 
 
@@ -209,7 +212,7 @@ tanks_ln  %>% filter(n >3) %>%
     strip.background = element_rect(fill = "white"))
 ```
 
-### Accuracy 
+#### Accuracy 
 
 Figure \@ref(fig:diffvsn2o-plot) shows the differences between the new instrumentation and Shimadzu-1, plotted against the N~2~O tank assignments. 
 
@@ -232,7 +235,7 @@ scatterPlot(tanks, x = "N2O", y = "diff", z = "sd", type = "instrument",
 ```
 
 
-### Testing for CO~2~ interference 
+#### Testing for CO~2~ interference 
 
 Figure \@ref(fig:diffvsco2-plot) shows the differences between the new instrumentation and Shimadzu-1, plotted against the CO~2~ content of the tanks. 
 The GC-PDD system shows quite a strong dependence, that explains most of the scatter.
@@ -271,53 +274,99 @@ There are fewer data points available, but the resulting trends tie in with the 
 
 
 
-## Next steps 
+### Next steps 
 
 * rerun analysis with updated working standard assignments 
 * double check outliers - are we missing something (an interference from something else )
 * Extend comparison to flasks? a bit difficult because of corrections applied in the database but not on the results from the new instrumentation 
 
-## Conclusions 
-Based on the results above, the ECD system seems to be the best option to replace Shimadzu-1. It has adequate precision, and is not affected by CO~2~ interference. It also opens up the possibility of adding SF~6~ to GASLAB's suite of measured species.
+### Conclusions 
+Based on the results above, the ECD system seems to be the best option to replace Shimadzu-1. It has adequate precision and is free of CO~2~ interference. Using the ECD system also opens up the possibility of adding SF~6~ to GASLAB's suite of measured species.
 
-The GC-PDD will provide backup N~2~O measurements if needed - we will need to apply a CO~2~ correction. 
+The GC-PDD will provide backup N~2~O measurements if needed - we will need to apply a CO~2~ correction and check it from time to time (could keep 3 dedicated tanks for this purpose, either the old GPA isotope standards or some of the old MQA loflo standards). 
 
-# Making replacement operational
+# Integration of replacement into GASLAB operations
 
-* better location/more space around the instrument 
-* better sample introduction system - MFC + carousel
-* dryer 
-* integration with the database
+## What 
+Tanks are already fairly routinely analysed on the GC-ECD system, so integration really means flask analyses and database integration.
 
-There are three options/approaches to making the ECD operational: 
 
-1. 'drop in' the Agilent GC in place of the Shimadzu, keeping the current carousel, dryer, 'control box', integrator and terminal. The analog signal from the new GC would be connected to the integrator (needs 0 to 1 signal). Would need new integrator method, and control of internal valves. Advantage is that the link to SQUALL is preserved; however the data would end up in the SHIM-1 table, which I don't think is the best way forward. No easy way to handle the new SF~6~ data stream. 
+## How 
 
-2. Replace Shimadzu, 'control box', integrator and terminal with new GC + computer (GCWerks). We can keep the carousel + dryer. No immediate database link - need good backup of GCWerks data/settings. Advantages - GCWerks control + processing - easy to rework the data if needed. Would need its own Linux box + working standard.
+There are at least four options/approaches to making the ECD operational:  
 
-3. Integrate the new ECD system with the PDD system and the new carousel + dryer system. The advantage is that we do things only once. The disadvantage is that the PDD, the carousel and the dryer are not yet ready. This delays the ECD deployment indefinitely (1-2 years?). There would probably be no immediate database integration either. Also, any tinkering needed on any parts of the system (including adding CO capability) would interrupt operational use of the ECD. The temptation would then be to keep running flasks on Shimadzu-1, instead of taking advantage of the increased precision and accuracy of the ECD system. 
+Option 1: 
+Build extra carrousel and dryer, and use the GC-ECD alongside Shimadzu-1 for a period of time. 
+Although this is an attractive option, there are a number of considerations that make this impractical: 
 
-I think of Option 1 as an emergency back up solution. 
+* the instrument needs a better location (i.e. not directly under the air con) and more space around it to accommodate a carrousel, but we lack the lab space. 
+* most flasks do not contain enough sample to accommodate a Shimadzu-1 AND a GC-ECD analysis
+* until we have database integration, it will be difficult to evaluate flask results (the database applies a storage correction that will not be replicated in GC-Werks)
 
-Option 3 is the ambitious end goal: one new, completely integrated system; however, this has been in the works for years and we are not there yet. 
+Option 2: 
+'Drop in' the Agilent GC in place of the Shimadzu, keeping the current carousel, dryer, 'control box', integrator and terminal. The analog signal from the new GC would be connected to the integrator (needs 0 to 1 signal). Would need new integrator method, and control of internal valves using the 'control box' instead of GCWerks. Advantage: link to SQUALL is preserved; however the data would end up in the SHIM-1 table, which would need to be fixed later. There would be no easy way to handle the new SF~6~ data stream, and we forgo the advantages of using GCWerks. 
 
-I think Option 2 is the way to go. It is a stand alone improvement to the lab that can be implemented pretty quickly. 
-It will make us take the plunge and force us to iron out how we will combine GCWerks and the new database. It should give us better N~2~O measurements right away. Also, it lets us make a start on the SF~6~ measurements sooner than either of the other two options. 
+Option 3:
+Integrate the new ECD system with the PDD system and the new carousel + dryer system. Advantage: we do things only once, GCWerks control + processing - easy to rework the data if needed. The main disadvantage is that the PDD, the carousel and the dryer are not yet ready. This delays the ECD deployment indefinitely (1-2 years?). There would still be no immediate database integration. Also, any tinkering needed on any part(s) of the system (including adding CO capability) would interrupt operational use of the ECD. 
 
-If we choose Option 2, two things need to happen pretty quickly: 
+Option 4:
+Staged implementation: replace Shimadzu, 'control box', integrator and terminal with new GC + computer (GCWerks). We can keep the current carousel + dryer. Advantages: GCWerks control + processing - easy to rework the data if needed. Would need its own Linux box + network port. 
+No immediate database link - will need good backup of GCWerks data/settings.
 
-* wrapping up of the Shimadzu-1 record (see next section) 
-* thorough testing of the ECD system at 350$^\circ$C (ongoing)
+After discussion with DAS, RLL and others: 
 
-# Wrapping up Shimadzu-1 record 
+Option 1 - attractive, if we can figure out where to put the new instrument. Would probably delay the switch to the new ECD, because of the time needed to build the carrousel, and the temptation to keep running 'just one more test'. 
+
+Option 2 - emergency back up solution?
+
+Option 3 is the ambitious end goal: one new, completely integrated system; however, this has been in the works for years and we are not there yet. Persevering with this will delay the switch to the ECD unnecessarily. 
+
+Option 4 is the most feasible option and can be implemented relatively quickly. It will make us take the plunge and force us to iron out the details of how we will combine GCWerks and the new database. It should give us better N~2~O measurements (improved precision and accuracy) right away. Also, it will let us make a start on SF~6~ sooner than either Option 2 or 3. 
+
+## When
+
+Since 3 out of the 4 options explored above necessitate that we turn off and remove Shimadzu-1 from its bench, it is primordial that we **wrap up the Shimadzu-1 record PRIOR to the swtich** (see next section).  
+On the GC-ECD side: 
+
+* add MFC to inlet
+* finalise GC-ECD configuration details (e.g. detector temp, flush time) + calibration implementation (secondary vs. primary)
+* finalise GCWerks methods, runfiles, etc.
+* figure out day-to-day operation - no run numbers anymore 
+* HSE considerations/paperwork
+* linux box + software (clean version this time!)
+ 
+Timing considerations: 
+We could aim for an end of calendar year (January) switch, this would give us ~18 months before the next reporting round - hopefully enough time for the new database to come online. Of course, not all flasks from 2020 will have been analysed by January, so there would be delays in the reporting of the Antarctica flask results. Most flasks return in ~March, so we could delay until then if this is preferred.
+Either way, this gives us ~3-6 months to get ready for the switch.  
+
+But the most important consideration is that we need to be happy with switching Shimadzu-1 off. 
+
+
+Database considerations: 
+It is probably feasible to have one of the new DB team working on the new tables etc. in parallel to the migration of SQUALL. This would reduce the lead time. 
+We will need to decide how much of the processing will take place in GCWerks and how much in 'stored procedures' in the database. 
+
+## HSE considerations 
+
+## Other considerations 
+
+* network port for new linux box 
+* need room for 2 carrier gas cylinders
+* mount N~2~ and CO~2~ regulators to wall/plate?
+
+
+# Shimadzu-1 end of life considerations
+
+## Wrapping up Shimadzu-1 record 
+* Further tests on impact of atmospheric pressure changes
 * Determine empirical CO~2~ correction 
   * Does it depend on detector temperature? 
   * Have any other parameters changed over time? Do they impact this correction? 
 * Implement correction - revise entire record - probably mostly an issue for samples containing CO~2~ that is very different from the CO~2~ present in the working standard 
-* Finalise code etc. prior to switching off Shimadzu-1. Correction will need to be implemented in the new database - so the record can be revised when there is a scale change (either N~2~O or CO~2~). 
-* Publish entire record + ESSD paper 
+* Finalise code etc. prior to switching off Shimadzu-1. Correction(s) will need to be implemented in the new database - so the record can be revised when there is a scale change (either N~2~O or CO~2~). 
+* Down the line: Publish entire record + ESSD paper 
 
-# HSE considerations 
+
 
 # TO DO
 * plot response curves for all four instruments 

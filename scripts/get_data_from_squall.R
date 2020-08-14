@@ -11,6 +11,8 @@ library(dbplyr)
 library(dplyr)
 library(odbc)
 
+
+
 #establish connection to database 
 con <- dbConnect(odbc::odbc(), 
                  .connection_string = 'driver={SQL Server};server=squall-cdc.it.csiro.au;database=gaslab;trusted_connection=true')
@@ -18,7 +20,7 @@ con <- dbConnect(odbc::odbc(),
 #dbDisconnect(con)
 
 #define functions 
-UAN_list <- c("20120148", "20150061", "20160337", "20190214", "20190543", "20100532", "20100778", "20160484", "999479")
+#UAN_list <- c("20120148", "20150061", "20160337", "20190214", "20190543", "20100532", "20100778", "20160484", "999479")
 
 #grab all 'good' data from SHIM-1 table, based on heights 
 get_s1 <- function(uan = c(), flag = 0) {
