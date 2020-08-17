@@ -288,8 +288,8 @@ The GC-PDD will provide backup N~2~O measurements if needed - we will need to ap
 # Integration of replacement into GASLAB operations
 
 ## What 
-Tanks are already fairly routinely analysed on the GC-ECD system, so integration really means flask analyses and database integration.
 
+Integration means routine flask and tank analyses and database integration for easy reporting.
 
 ## How 
 
@@ -307,7 +307,7 @@ Option 2:
 'Drop in' the Agilent GC in place of the Shimadzu, keeping the current carousel, dryer, 'control box', integrator and terminal. The analog signal from the new GC would be connected to the integrator (needs 0 to 1 signal). Would need new integrator method, and control of internal valves using the 'control box' instead of GCWerks. Advantage: link to SQUALL is preserved; however the data would end up in the SHIM-1 table, which would need to be fixed later. There would be no easy way to handle the new SF~6~ data stream, and we forgo the advantages of using GCWerks. 
 
 Option 3:
-Integrate the new ECD system with the PDD system and the new carousel + dryer system. Advantage: we do things only once, GCWerks control + processing - easy to rework the data if needed. The main disadvantage is that the PDD, the carousel and the dryer are not yet ready. This delays the ECD deployment indefinitely (1-2 years?). There would still be no immediate database integration. Also, any tinkering needed on any part(s) of the system (including adding CO capability) would interrupt operational use of the ECD. 
+Integrate the new ECD system with the PDD system and the new carousel + dryer system. Advantage: we do things only once, GCWerks control + processing - easy to rework the data if needed. The main disadvantage is that the PDD, the carousel and the dryer are not yet ready. This delays the ECD deployment indefinitely (1-2 years?). Any tinkering needed on any part(s) of the system (including adding CO capability) would interrupt the operational use of the ECD. 
 
 Option 4:
 Staged implementation: replace Shimadzu, 'control box', integrator and terminal with new GC + computer (GCWerks). We can keep the current carousel + dryer. Advantages: GCWerks control + processing - easy to rework the data if needed. Would need its own Linux box + network port. 
@@ -321,29 +321,30 @@ Option 2 - emergency back up solution?
 
 Option 3 is the ambitious end goal: one new, completely integrated system; however, this has been in the works for years and we are not there yet. Persevering with this will delay the switch to the ECD unnecessarily. 
 
-Option 4 is the most feasible option and can be implemented relatively quickly. It will make us take the plunge and force us to iron out the details of how we will combine GCWerks and the new database. It should give us better N~2~O measurements (improved precision and accuracy) right away. Also, it will let us make a start on SF~6~ sooner than either Option 2 or 3. 
+**Option 4 is the most feasible option** and can be implemented relatively quickly. It will make us take the plunge and force us to iron out the details of how we will combine GCWerks and the new database. It should give us better N~2~O measurements (improved precision and accuracy) right away. Also, it will let us make a start on SF~6~ sooner than either Option 2 or 3. 
 
 ## When
 
-Since 3 out of the 4 options explored above necessitate that we turn off and remove Shimadzu-1 from its bench, it is primordial that we **wrap up the Shimadzu-1 record PRIOR to the swtich** (see next section).  
+Since 3 out of the 4 options explored above necessitate that we turn off and remove Shimadzu-1 from its bench, it is primordial that we **wrap up the Shimadzu-1 record PRIOR to the swtich** (see next section). 
+
 On the GC-ECD side: 
 
 * add MFC to inlet
-* finalise GC-ECD configuration details (e.g. detector temp, flush time) + calibration implementation (secondary vs. primary)
+* finalise GC-ECD configuration details (e.g. detector temp, flush time) + calibration implementation (secondary (frequent) vs. primary (infrequent)) - how do we implement this in GCWerks (or is this better done in the database?)
 * finalise GCWerks methods, runfiles, etc.
-* figure out day-to-day operation - no run numbers anymore 
+* figure out day-to-day operation - no run numbers - do we keep paper logs based on date, do we move to digital logs? Noting which aliquots were flushed has proven useful in the past.  
 * HSE considerations/paperwork
 * linux box + software (clean version this time!)
  
 Timing considerations: 
-We could aim for an end of calendar year (January) switch, this would give us ~18 months before the next reporting round - hopefully enough time for the new database to come online. Of course, not all flasks from 2020 will have been analysed by January, so there would be delays in the reporting of the Antarctica flask results. Most flasks return in ~March, so we could delay until then if this is preferred.
+We could aim for an end of calendar year (January) switch, this would give us ~18 months before the next reporting round - hopefully enough time for the new database to come online. Of course, not all flasks from 2020 will have been analysed by January, so there would be delays in the reporting of the Antarctica flask results. Most Antarctic flasks return in ~March, so we could delay until then if this is preferred.
 Either way, this gives us ~3-6 months to get ready for the switch.  
 
 But the most important consideration is that we need to be happy with switching Shimadzu-1 off. 
 
 
 Database considerations: 
-It is probably feasible to have one of the new DB team working on the new tables etc. in parallel to the migration of SQUALL. This would reduce the lead time. 
+It is probably feasible to have one of the new DB team working on the new tables etc. in parallel to the migration of SQUALL. This would reduce the lead time.
 We will need to decide how much of the processing will take place in GCWerks and how much in 'stored procedures' in the database. 
 
 ## HSE considerations 
@@ -364,8 +365,7 @@ We will need to decide how much of the processing will take place in GCWerks and
   * Have any other parameters changed over time? Do they impact this correction? 
 * Implement correction - revise entire record - probably mostly an issue for samples containing CO~2~ that is very different from the CO~2~ present in the working standard 
 * Finalise code etc. prior to switching off Shimadzu-1. Correction(s) will need to be implemented in the new database - so the record can be revised when there is a scale change (either N~2~O or CO~2~). 
-* Down the line: Publish entire record + ESSD paper 
-
+* Down the line: Publish entire finalised N~2~O record + ESSD paper 
 
 
 # TO DO
